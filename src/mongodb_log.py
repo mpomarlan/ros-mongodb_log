@@ -213,7 +213,8 @@ class WorkerProcess(object):
                     self.worker_drop_counter.increment()
                 except Empty:
                     pass
-            self.queue.put((topic, data, current_time or datetime.now()))
+            #self.queue.put((topic, data, current_time or datetime.now()))
+            self.queue.put((topic, data, rospy.get_time()))
             self.in_counter.increment()
             self.worker_in_counter.increment()
 
