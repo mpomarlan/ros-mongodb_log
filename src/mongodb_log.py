@@ -294,7 +294,7 @@ class SubprocessWorker(object):
         collection = "%s.%s" % (mongodb_name, collname)
         nodename = WORKER_NODE_NAME % (self.nodename_prefix, self.id, self.collname)
         
-        self.process = subprocess.Popen([cpp_logger[0], "-t", topic, "-n", nodename,
+        self.process = subprocess.Popen([cpp_logger, "-t", topic, "-n", nodename,
                                          "-m", mongodb_host_port, "-c", collection],
                                         stdout=subprocess.PIPE)
 
@@ -438,7 +438,7 @@ class MongoWriter(object):
                                  self.in_counter.count, self.out_counter.count,
                                  self.drop_counter.count, QUEUE_MAXSIZE,
                                  self.mongodb_host, self.mongodb_port, self.mongodb_name,
-                                 self.nodename_prefix, node_path)
+                                 self.nodename_prefix, node_path[0])
 
         if not w:
             print("GENERIC Python logger used for topic %s" % topic)
