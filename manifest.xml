@@ -1,4 +1,5 @@
 <package>
+
   <description brief="mongodb_log">
     Log ROS messages to MongoDB. Each individual message is converted
     to a document, possibly recursive.
@@ -15,5 +16,11 @@
   <depend package="tf"/>
   <depend package="sensor_msgs"/>
   <depend package="mongodb"/>
+  
+  <!-- Designator Integration -->
+  <depend package="designator_integration"/>
+  <depend package="designator_integration_msgs"/>
+  
   <!-- <depend package="rviz_intel"/> -->
+
 </package>

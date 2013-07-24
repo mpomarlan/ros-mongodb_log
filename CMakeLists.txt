@@ -12,7 +12,6 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 rosbuild_init()
 rosbuild_add_boost_directories()
 
-
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
@@ -23,10 +22,14 @@ link_libraries(mongoclient)
 rosbuild_add_executable(mongodb_log_tf src/mongodb_log_tf.cpp)
 rosbuild_add_executable(mongodb_log_pcl src/mongodb_log_pcl.cpp)
 rosbuild_add_executable(mongodb_log_cimg src/mongodb_log_cimg.cpp)
+rosbuild_add_executable(mongodb_log_desig src/mongodb_log_desig.cpp)
 rosbuild_add_executable(benchmark_produce_tf src/benchmark/produce_tf.cpp)
+
+target_link_libraries(mongodb_log_desig DesignatorIntegration)
+
 # rosbuild_add_executable(rosmongodb_log_trimesh src/rosmongodb_log_trimesh.cpp)
 rosbuild_link_boost(mongodb_log_cimg system)
 rosbuild_link_boost(mongodb_log_pcl system)
 rosbuild_link_boost(mongodb_log_tf system)
+rosbuild_link_boost(mongodb_log_desig system)
 #rosbuild_link_boost(mongodb_log_trimesh system)
-

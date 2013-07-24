@@ -50,6 +50,8 @@ from random import randint
 from tf.msg import tfMessage
 from sensor_msgs.msg import PointCloud, CompressedImage
 from roslib.packages import find_node
+from designator_integration_msgs.msg import DesignatorRequest
+from designator_integration_msgs.msg import DesignatorResponse
 #from rviz_intel.msg import TriangleMesh
 
 use_setproctitle = True
@@ -268,7 +270,7 @@ class WorkerProcess(object):
 class SubprocessWorker(object):
     def __init__(self, idnum, topic, collname, in_counter_value, out_counter_value,
                  drop_counter_value, queue_maxsize,
-                 mongodb_host, mongodb_port, mongodb_name, nodename_prefix, cpp_logger):
+                 mongodb_host, mongodb_port, mongodb_name, nodename_prefix, cpp_logger, additional_parameters = []):
 
         self.name = "SubprocessWorker-%4d-%s" % (idnum, topic)
         self.id = idnum
@@ -295,7 +297,7 @@ class SubprocessWorker(object):
         nodename = WORKER_NODE_NAME % (self.nodename_prefix, self.id, self.collname)
         
         self.process = subprocess.Popen([cpp_logger, "-t", topic, "-n", nodename,
-                                         "-m", mongodb_host_port, "-c", collection],
+                                         "-m", mongodb_host_port, "-c", collection] + additional_parameters,
                                         stdout=subprocess.PIPE)
 
         self.thread.start()
@@ -409,6 +411,7 @@ class MongoWriter(object):
 
         w = None
         node_path = None
+        additional_parameters = [];
         
         if not self.no_specific and msg_class == tfMessage:
             print("DETECTED transform topic %s, using fast C++ logger" % topic)
@@ -425,6 +428,18 @@ class MongoWriter(object):
             node_path = find_node(PACKAGE_NAME, "mongodb_log_cimg")
             if not node_path:
                 print("FAILED to detect mongodb_log_cimg, falling back to generic logger (did not build package?)")
+        elif not self.no_specific and msg_class == DesignatorRequest:
+            print("DETECTED designator request topic %s, using fast C++ logger" % topic)
+            node_path = find_node(PACKAGE_NAME, "mongodb_log_desig")
+            additional_parameters = ["-d" "designator"]
+            if not node_path:
+                print("FAILED to detect mongodb_log_desig, falling back to generic logger (did not build package?)")
+        elif not self.no_specific and msg_class == DesignatorResponse:
+            print("DETECTED designator response topic %s, using fast C++ logger" % topic)
+            node_path = find_node(PACKAGE_NAME, "mongodb_log_desig")
+            additional_parameters = ["-d" "list"]
+            if not node_path:
+                print("FAILED to detect mongodb_log_desig, falling back to generic logger (did not build package?)")
         """
         elif msg_class == TriangleMesh:
             print("DETECTED triangle mesh topic %s, using fast C++ logger" % topic)
@@ -438,7 +453,7 @@ class MongoWriter(object):
                                  self.in_counter.count, self.out_counter.count,
                                  self.drop_counter.count, QUEUE_MAXSIZE,
                                  self.mongodb_host, self.mongodb_port, self.mongodb_name,
-                                 self.nodename_prefix, node_path[0])
+                                 self.nodename_prefix, node_path[0], additional_parameters)
 
         if not w:
             print("GENERIC Python logger used for topic %s" % topic)
