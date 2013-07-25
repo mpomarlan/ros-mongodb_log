@@ -51,6 +51,14 @@ static pthread_mutex_t out_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t drop_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t qsize_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+
+enum OperationMode {
+  DESIGNATOR = 0,
+  DESIGNATOR_REQUEST = 1,
+  DESIGNATOR_RESPONSE = 2
+};
+
+
 BSONObj keyValuePairToBSON(CKeyValuePair *ckvpPair) {
   BSONObjBuilder bobBuilder;
   
@@ -170,43 +178,12 @@ void cbDesignatorRequestMsg(const designator_integration_msgs::DesignatorRequest
   CDesignator *desigLog = new CDesignator(msg.designator);
   logDesignator(desigLog);
   delete desigLog;
-  
-  // std::vector<BSONObj> transforms;
-  
-  // const tf::tfMessage& msg_in = *msg;
+}
 
-  // std::vector<geometry_msgs::TransformStamped>::const_iterator t;
-  // for (t = msg_in.transforms.begin(); t != msg_in.transforms.end(); ++t) {
-  //   Date_t stamp = t->header.stamp.sec * 1000 + t->header.stamp.nsec / 1000000;
-  //   BSONObjBuilder transform_stamped;
-  //   BSONObjBuilder transform;
-  //   transform_stamped.append("header", BSON("seq" << t->header.seq
-  // 					    << "stamp" << stamp
-  // 					    << "frame_id" << t->header.frame_id));
-  //   transform_stamped.append("child_frame_id", t->child_frame_id);
-  //   transform.append("translation", BSON(   "x" << t->transform.translation.x
-  // 					 << "y" << t->transform.translation.y
-  // 					 << "z" << t->transform.translation.z));
-  //   transform.append("rotation", BSON(   "x" << t->transform.rotation.x
-  // 				      << "y" << t->transform.rotation.y
-  // 				      << "z" << t->transform.rotation.z
-  // 				      << "w" << t->transform.rotation.w));
-  //   transform_stamped.append("transform", transform.obj());
-  //   transforms.push_back(transform_stamped.obj());
-  // }
-
-  // mongodb_conn->insert(collection, BSON("transforms" << transforms <<
-  //                                       "__recorded" << Date_t(time(NULL) * 1000) <<
-  //                                       "__topic" << topic));
-
-  // // If we'd get access to the message queue this could be more useful
-  // // https://code.ros.org/trac/ros/ticket/744
-  // pthread_mutex_lock(&in_counter_mutex);
-  // ++in_counter;
-  // pthread_mutex_unlock(&in_counter_mutex);
-  // pthread_mutex_lock(&out_counter_mutex);
-  // ++out_counter;
-  // pthread_mutex_unlock(&out_counter_mutex);
+void cbDesignatorMsg(const designator_integration_msgs::Designator &msg) {
+  CDesignator *desigLog = new CDesignator(msg);
+  logDesignator(desigLog);
+  delete desigLog;
 }
 
 void printCount(const ros::TimerEvent &te) {
@@ -249,7 +226,7 @@ int main(int argc, char** argv) {
   string strMongoDBHostname = "localhost";
   string strNodename = "";
   
-  bool bDesignatorModeList = false;
+  enum OperationMode enOpMode = DESIGNATOR;
   
   char cToken = '\0';
   while((cToken = getopt(argc, argv, "t:m:n:c:d:")) != -1) {
@@ -270,12 +247,15 @@ int main(int argc, char** argv) {
       string strArgument = optarg;
       
       if(strArgument == "designator") {
-	bDesignatorModeList = false;
-      } else if(strArgument == "list") {
-	bDesignatorModeList = true;
+	enOpMode = DESIGNATOR;
+      } else if(strArgument == "designator-request") {
+	enOpMode = DESIGNATOR_REQUEST;
+      } else if(strArgument == "designator-response") {
+	enOpMode = DESIGNATOR_RESPONSE;
       } else {
 	ROS_WARN("Designator mode (-d) was set to `%s' which is invalid.", strArgument.c_str());
-	ROS_WARN("Valid options are: designator, list. Assuming the standard value: designator");
+	ROS_WARN("Valid options are: designator, designator-request, designator-response.");
+	ROS_WARN("Assuming the standard value: designator");
       }
     }
   }
@@ -298,14 +278,30 @@ int main(int argc, char** argv) {
 	
 	if(dbMongoDB->connect(strMongoDBHostname, strError)) {
 	  ros::Subscriber subTopic;
-	  if(bDesignatorModeList) {
-	    subTopic = nh.subscribe(strTopic, 1000, cbDesignatorResponseMsg);
-	  } else {
+	  
+	  switch(enOpMode) {
+	  case DESIGNATOR: {
+	    subTopic = nh.subscribe(strTopic, 1000, cbDesignatorMsg);
+	  } break;
+	    
+	  case DESIGNATOR_REQUEST: {
 	    subTopic = nh.subscribe(strTopic, 1000, cbDesignatorRequestMsg);
+	  } break;
+	    
+	  case DESIGNATOR_RESPONSE: {
+	    subTopic = nh.subscribe(strTopic, 1000, cbDesignatorResponseMsg);
+	  } break;
+	    
+	  default: {
+	    ROS_ERROR("Invalid topic type selected. This is a serious error which shouldn't be happening.");
+	    nReturnvalue = -2;
+	  } break;
 	  }
 	  
-	  ros::Timer tmrPrintCount = nh.createTimer(ros::Duration(5, 0), printCount);
-	  ros::spin();
+	  if(nReturnvalue == 0) {
+	    ros::Timer tmrPrintCount = nh.createTimer(ros::Duration(5, 0), printCount);
+	    ros::spin();
+	  }
 	  
 	  delete dbMongoDB;
 	} else {

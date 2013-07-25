@@ -52,6 +52,7 @@ from sensor_msgs.msg import PointCloud, CompressedImage
 from roslib.packages import find_node
 from designator_integration_msgs.msg import DesignatorRequest
 from designator_integration_msgs.msg import DesignatorResponse
+from designator_integration_msgs.msg import Designator
 #from rviz_intel.msg import TriangleMesh
 
 use_setproctitle = True
@@ -431,13 +432,19 @@ class MongoWriter(object):
         elif not self.no_specific and msg_class == DesignatorRequest:
             print("DETECTED designator request topic %s, using fast C++ logger" % topic)
             node_path = find_node(PACKAGE_NAME, "mongodb_log_desig")
-            additional_parameters = ["-d" "designator"]
+            additional_parameters = ["-d" "designator-request"]
             if not node_path:
                 print("FAILED to detect mongodb_log_desig, falling back to generic logger (did not build package?)")
         elif not self.no_specific and msg_class == DesignatorResponse:
             print("DETECTED designator response topic %s, using fast C++ logger" % topic)
             node_path = find_node(PACKAGE_NAME, "mongodb_log_desig")
-            additional_parameters = ["-d" "list"]
+            additional_parameters = ["-d" "designator-response"]
+            if not node_path:
+                print("FAILED to detect mongodb_log_desig, falling back to generic logger (did not build package?)")
+        elif not self.no_specific and msg_class == Designator:
+            print("DETECTED designator response topic %s, using fast C++ logger" % topic)
+            node_path = find_node(PACKAGE_NAME, "mongodb_log_desig")
+            additional_parameters = ["-d" "designator"]
             if not node_path:
                 print("FAILED to detect mongodb_log_desig, falling back to generic logger (did not build package?)")
         """
