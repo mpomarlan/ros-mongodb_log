@@ -78,7 +78,7 @@ BSONObj keyValuePairToBSON(CKeyValuePair *ckvpPair) {
 			     << "y" << psPose.orientation.y
 			     << "z" << psPose.orientation.z
 			     << "w" << psPose.orientation.w));
-    bobBuilder.appendElements(bobTransform.obj());
+    bobBuilder.append(ckvpPair->key(), bobTransform.obj());
   } else if(ckvpPair->type() == POSESTAMPED) {
     geometry_msgs::PoseStamped psPoseStamped = ckvpPair->poseStampedValue();
     Date_t stamp = psPoseStamped.header.stamp.sec * 1000 + psPoseStamped.header.stamp.nsec / 1000000;
@@ -99,7 +99,7 @@ BSONObj keyValuePairToBSON(CKeyValuePair *ckvpPair) {
     			     << "z" << psPoseStamped.pose.orientation.z
     			     << "w" << psPoseStamped.pose.orientation.w));
     bobTransformStamped.append("pose", bobTransform.obj());
-    bobBuilder.appendElements(bobTransformStamped.obj());
+    bobBuilder.append(ckvpPair->key(), bobTransformStamped.obj());
   } else if(ckvpPair->type() == LIST) {
     BSONObjBuilder bobChildren;
     list<CKeyValuePair*> lstChildren = ckvpPair->children();
@@ -125,10 +125,8 @@ void logDesignator(CDesignator *desigLog) {
   for(list<CKeyValuePair*>::iterator itChild = lstChildren.begin();
       itChild != lstChildren.end();
       itChild++) {
-    vecChildren.push_back(keyValuePairToBSON(*itChild));
+    bobDesig.appendElements(keyValuePairToBSON(*itChild));
   }
-  
-  bobDesig.append("children", vecChildren);
   
   string strDesigType = "unknown";
   switch(desigLog->type()) {
@@ -148,7 +146,7 @@ void logDesignator(CDesignator *desigLog) {
     break;
   }
   
-  bobDesig.append("type", strDesigType);
+  bobDesig.append("_designator_type", strDesigType);
   
   dbMongoDB->insert(strCollection, BSON("designator" << bobDesig.obj() <<
 					"__recorded" << Date_t(time(NULL) * 1000) <<
@@ -253,9 +251,9 @@ int main(int argc, char** argv) {
       } else if(strArgument == "designator-response") {
 	enOpMode = DESIGNATOR_RESPONSE;
       } else {
-	ROS_WARN("Designator mode (-d) was set to `%s' which is invalid.", strArgument.c_str());
-	ROS_WARN("Valid options are: designator, designator-request, designator-response.");
-	ROS_WARN("Assuming the standard value: designator");
+	// ROS_WARN("Designator mode (-d) was set to `%s' which is invalid.", strArgument.c_str());
+	// ROS_WARN("Valid options are: designator, designator-request, designator-response.");
+	// ROS_WARN("Assuming the standard value: designator");
       }
     }
   }
