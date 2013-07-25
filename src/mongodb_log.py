@@ -442,7 +442,7 @@ class MongoWriter(object):
             if not node_path:
                 print("FAILED to detect mongodb_log_desig, falling back to generic logger (did not build package?)")
         elif not self.no_specific and msg_class == Designator:
-            print("DETECTED designator response topic %s, using fast C++ logger" % topic)
+            print("DETECTED designator topic %s, using fast C++ logger" % topic)
             node_path = find_node(PACKAGE_NAME, "mongodb_log_desig")
             additional_parameters = ["-d" "designator"]
             if not node_path:
