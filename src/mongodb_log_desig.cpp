@@ -81,7 +81,7 @@ BSONObj keyValuePairToBSON(CKeyValuePair *ckvpPair) {
     bobBuilder.append(ckvpPair->key(), bobTransform.obj());
   } else if(ckvpPair->type() == POSESTAMPED) {
     geometry_msgs::PoseStamped psPoseStamped = ckvpPair->poseStampedValue();
-    Date_t stamp = psPoseStamped.header.stamp.sec * 1000 + psPoseStamped.header.stamp.nsec / 1000000;
+    Date_t stamp = psPoseStamped.header.stamp.sec * 1000.0 + psPoseStamped.header.stamp.nsec / 1000000.0;
     
     BSONObjBuilder bobTransformStamped;
     BSONObjBuilder bobTransform;

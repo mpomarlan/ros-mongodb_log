@@ -51,7 +51,8 @@ void msg_callback(const tf::tfMessage::ConstPtr& msg)
 
   std::vector<geometry_msgs::TransformStamped>::const_iterator t;
   for (t = msg_in.transforms.begin(); t != msg_in.transforms.end(); ++t) {
-    Date_t stamp = t->header.stamp.sec * 1000 + t->header.stamp.nsec / 1000000;
+    Date_t stamp = t->header.stamp.sec * 1000.0 + t->header.stamp.nsec / 1000000.0;
+    
     BSONObjBuilder transform_stamped;
     BSONObjBuilder transform;
     transform_stamped.append("header", BSON("seq" << t->header.seq
