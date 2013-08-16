@@ -1,4 +1,3 @@
-
 /***************************************************************************
  *  mongodb_log_tf.cpp - MongoDB Logger for /tf
  *
@@ -22,12 +21,27 @@
  *  Read the full text in the LICENSE.GPL_WRE file in the doc directory.
  */
 
-#include <ros/ros.h>
-#include <mongo/client/dbclient.h>
+// System
+#include <list>
 
+// ROS
+#include <ros/ros.h>
 #include <tf/tfMessage.h>
 
+// MongoDB
+#include <mongo/client/dbclient.h>
+
 using namespace mongo;
+
+
+typedef struct PoseStampedMemoryEntry_ {
+  tf::tfMessage tfMsg;
+  time_t timeLastSeen;
+} PoseStampedMemoryEntry;
+
+double dVectorialDistanceThreshold;
+double dAngularDistanceThreshold;
+list<PoseStampedMemoryEntry> lstPoseStampedMemory;
 
 DBClientConnection *mongodb_conn;
 std::string collection;
@@ -43,81 +57,90 @@ static pthread_mutex_t out_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t drop_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t qsize_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void msg_callback(const tf::tfMessage::ConstPtr& msg)
-{
-  std::vector<BSONObj> transforms;
+bool shouldLogTransform(tf::tfMessage tfMsg) {
+  // TODO(winkler): Implement this.
   
-  const tf::tfMessage& msg_in = *msg;
-
-  std::vector<geometry_msgs::TransformStamped>::const_iterator t;
-  for (t = msg_in.transforms.begin(); t != msg_in.transforms.end(); ++t) {
-    Date_t stamp = t->header.stamp.sec * 1000.0 + t->header.stamp.nsec / 1000000.0;
-    
-    BSONObjBuilder transform_stamped;
-    BSONObjBuilder transform;
-    transform_stamped.append("header", BSON("seq" << t->header.seq
-					    << "stamp" << stamp
-					    << "frame_id" << t->header.frame_id));
-    transform_stamped.append("child_frame_id", t->child_frame_id);
-    transform.append("translation", BSON(   "x" << t->transform.translation.x
-					 << "y" << t->transform.translation.y
-					 << "z" << t->transform.translation.z));
-    transform.append("rotation", BSON(   "x" << t->transform.rotation.x
-				      << "y" << t->transform.rotation.y
-				      << "z" << t->transform.rotation.z
-				      << "w" << t->transform.rotation.w));
-    transform_stamped.append("transform", transform.obj());
-    transforms.push_back(transform_stamped.obj());
-  }
-
-  mongodb_conn->insert(collection, BSON("transforms" << transforms <<
-                                        "__recorded" << Date_t(time(NULL) * 1000) <<
-                                        "__topic" << topic));
-
-  // If we'd get access to the message queue this could be more useful
-  // https://code.ros.org/trac/ros/ticket/744
-  pthread_mutex_lock(&in_counter_mutex);
-  ++in_counter;
-  pthread_mutex_unlock(&in_counter_mutex);
-  pthread_mutex_lock(&out_counter_mutex);
-  ++out_counter;
-  pthread_mutex_unlock(&out_counter_mutex);
+  return true;
 }
 
-void print_count(const ros::TimerEvent &te)
-{
-  unsigned int l_in_counter, l_out_counter, l_drop_counter, l_qsize;
+void msg_callback(const tf::tfMessage::ConstPtr& msg) {
+  if(shouldLogTransform(*msg)) {
+    std::vector<BSONObj> transforms;
+  
+    const tf::tfMessage& msg_in = *msg;
+  
+    std::vector<geometry_msgs::TransformStamped>::const_iterator t;
+    for (t = msg_in.transforms.begin(); t != msg_in.transforms.end(); ++t) {
+      Date_t stamp = t->header.stamp.sec * 1000.0 + t->header.stamp.nsec / 1000000.0;
+    
+      BSONObjBuilder transform_stamped;
+      BSONObjBuilder transform;
+      transform_stamped.append("header", BSON("seq" << t->header.seq
+					      << "stamp" << stamp
+					      << "frame_id" << t->header.frame_id));
+      transform_stamped.append("child_frame_id", t->child_frame_id);
+      transform.append("translation", BSON(   "x" << t->transform.translation.x
+					      << "y" << t->transform.translation.y
+					      << "z" << t->transform.translation.z));
+      transform.append("rotation", BSON(   "x" << t->transform.rotation.x
+					   << "y" << t->transform.rotation.y
+					   << "z" << t->transform.rotation.z
+					   << "w" << t->transform.rotation.w));
+      transform_stamped.append("transform", transform.obj());
+      transforms.push_back(transform_stamped.obj());
+    }
 
+    mongodb_conn->insert(collection, BSON("transforms" << transforms <<
+					  "__recorded" << Date_t(time(NULL) * 1000) <<
+					  "__topic" << topic));
+
+    // If we'd get access to the message queue this could be more useful
+    // https://code.ros.org/trac/ros/ticket/744
+    pthread_mutex_lock(&in_counter_mutex);
+    ++in_counter;
+    pthread_mutex_unlock(&in_counter_mutex);
+    pthread_mutex_lock(&out_counter_mutex);
+    ++out_counter;
+    pthread_mutex_unlock(&out_counter_mutex);
+  }
+}
+
+void print_count(const ros::TimerEvent &te) {
+  unsigned int l_in_counter, l_out_counter, l_drop_counter, l_qsize;
+  
   pthread_mutex_lock(&in_counter_mutex);
   l_in_counter = in_counter; in_counter = 0;
   pthread_mutex_unlock(&in_counter_mutex);
-
+  
   pthread_mutex_lock(&out_counter_mutex);
   l_out_counter = out_counter; out_counter = 0;
   pthread_mutex_unlock(&out_counter_mutex);
-
+  
   pthread_mutex_lock(&drop_counter_mutex);
   l_drop_counter = drop_counter; drop_counter = 0;
   pthread_mutex_unlock(&drop_counter_mutex);
-
+  
   pthread_mutex_lock(&qsize_mutex);
   l_qsize = qsize; qsize = 0;
   pthread_mutex_unlock(&qsize_mutex);
-
-
+  
   printf("%u:%u:%u:%u\n", l_in_counter, l_out_counter, l_drop_counter, l_qsize);
   fflush(stdout);
 }
 
-
-int
-main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   std::string mongodb = "localhost", nodename = "";
   collection = topic = "";
-
+  
   in_counter = out_counter = drop_counter = qsize = 0;
-
+  
+  dVectorialDistanceThreshold = 0.005; // Distance threshold in terms
+				       // of vector distance between
+				       // an old and a new pose of the
+				       // same transform before it
+				       // gets logged again
+  dAngularDistanceThreshold = 0.005; // Same for angular distance
+  
   int c;
   while ((c = getopt(argc, argv, "t:m:n:c:")) != -1) {
     if ((c == '?') || (c == ':')) {
@@ -133,7 +156,7 @@ main(int argc, char **argv)
       collection = optarg;
     }
   }
-
+  
   if (topic == "") {
     printf("No topic given.\n");
     exit(-2);
@@ -141,10 +164,10 @@ main(int argc, char **argv)
     printf("No node name given.\n");
     exit(-2);
   }
-
+  
   ros::init(argc, argv, nodename);
   ros::NodeHandle n;
-
+  
   std::string errmsg;
   mongodb_conn = new DBClientConnection(/* auto reconnect*/ true);
   if (! mongodb_conn->connect(mongodb, errmsg)) {
