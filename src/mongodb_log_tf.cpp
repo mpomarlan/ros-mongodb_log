@@ -23,6 +23,7 @@
 
 // System
 #include <list>
+#include <string>
 
 // ROS
 #include <ros/ros.h>
@@ -34,14 +35,14 @@
 using namespace mongo;
 
 
-typedef struct PoseStampedMemoryEntry_ {
-  tf::tfMessage tfMsg;
+struct PoseStampedMemoryEntry {
+  geometry_msgs::TransformStamped tsTransform;
   time_t timeLastSeen;
-} PoseStampedMemoryEntry;
+};
 
 double dVectorialDistanceThreshold;
 double dAngularDistanceThreshold;
-list<PoseStampedMemoryEntry> lstPoseStampedMemory;
+list<struct PoseStampedMemoryEntry> lstPoseStampedMemory;
 
 DBClientConnection *mongodb_conn;
 std::string collection;
@@ -57,22 +58,52 @@ static pthread_mutex_t out_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t drop_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t qsize_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-bool shouldLogTransform(tf::tfMessage tfMsg) {
-  // TODO(winkler): Implement this.
+bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iterator t) {
+  string strMsgFrame = t->header.frame_id;
+  string strMsgChild = t->child_frame_id;
   
-  return true;
+  for(list<struct PoseStampedMemoryEntry>::iterator itEntry = lstPoseStampedMemory.begin();
+      itEntry != lstPoseStampedMemory.end();
+      itEntry++) {
+    string strEntryFrame = (*itEntry).tsTransform.header.frame_id;
+    string strEntryChild = (*itEntry).tsTransform.child_frame_id;
+    // Is this the same transform as in tfMsg?
+    
+    if((strEntryFrame == strMsgFrame && strEntryChild == strMsgChild) ||
+       (strEntryFrame == strMsgChild && strEntryChild == strMsgFrame)) {
+      // Yes, it is. Check vectorial and angular distance.
+      double dVectorialDistance = sqrt(((t->transform.translation.x - (*itEntry).tsTransform.transform.translation.x) *
+					(t->transform.translation.x - (*itEntry).tsTransform.transform.translation.x)) +
+				       ((t->transform.translation.y - (*itEntry).tsTransform.transform.translation.y) *
+					(t->transform.translation.y - (*itEntry).tsTransform.transform.translation.y)) +
+				       ((t->transform.translation.z - (*itEntry).tsTransform.transform.translation.z) *
+					(t->transform.translation.z - (*itEntry).tsTransform.transform.translation.z)));
+      double dAngularDistance = 0.0; // TODO(winkler): Implement this.
+      
+      if((dVectorialDistance > dVectorialDistanceThreshold) || (dAngularDistance > dAngularDistanceThreshold)) {
+	(*itEntry).tsTransform = *t;
+	
+	return true;
+      }
+    }
+  }
+  
+  return false;
 }
 
 void msg_callback(const tf::tfMessage::ConstPtr& msg) {
-  if(shouldLogTransform(*msg)) {
-    std::vector<BSONObj> transforms;
+  std::vector<BSONObj> transforms;
   
-    const tf::tfMessage& msg_in = *msg;
+  const tf::tfMessage& msg_in = *msg;
+  bool bDidLogTransforms = false;
   
-    std::vector<geometry_msgs::TransformStamped>::const_iterator t;
-    for (t = msg_in.transforms.begin(); t != msg_in.transforms.end(); ++t) {
+  std::vector<geometry_msgs::TransformStamped>::const_iterator t;
+  for (t = msg_in.transforms.begin(); t != msg_in.transforms.end(); ++t) {
+    if(shouldLogTransform(t)) {
+      bDidLogTransforms = true;
+      
       Date_t stamp = t->header.stamp.sec * 1000.0 + t->header.stamp.nsec / 1000000.0;
-    
+      
       BSONObjBuilder transform_stamped;
       BSONObjBuilder transform;
       transform_stamped.append("header", BSON("seq" << t->header.seq
@@ -89,19 +120,21 @@ void msg_callback(const tf::tfMessage::ConstPtr& msg) {
       transform_stamped.append("transform", transform.obj());
       transforms.push_back(transform_stamped.obj());
     }
-
-    mongodb_conn->insert(collection, BSON("transforms" << transforms <<
-					  "__recorded" << Date_t(time(NULL) * 1000) <<
-					  "__topic" << topic));
-
-    // If we'd get access to the message queue this could be more useful
-    // https://code.ros.org/trac/ros/ticket/744
-    pthread_mutex_lock(&in_counter_mutex);
-    ++in_counter;
-    pthread_mutex_unlock(&in_counter_mutex);
-    pthread_mutex_lock(&out_counter_mutex);
-    ++out_counter;
-    pthread_mutex_unlock(&out_counter_mutex);
+    
+    if(bDidLogTransforms) {
+      mongodb_conn->insert(collection, BSON("transforms" << transforms <<
+					    "__recorded" << Date_t(time(NULL) * 1000) <<
+					    "__topic" << topic));
+      
+      // If we'd get access to the message queue this could be more useful
+      // https://code.ros.org/trac/ros/ticket/744
+      pthread_mutex_lock(&in_counter_mutex);
+      ++in_counter;
+      pthread_mutex_unlock(&in_counter_mutex);
+      pthread_mutex_lock(&out_counter_mutex);
+      ++out_counter;
+      pthread_mutex_unlock(&out_counter_mutex);
+    }
   }
 }
 
