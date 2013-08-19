@@ -93,7 +93,7 @@ bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iter
       
       if((dVectorialDistance > dVectorialDistanceThreshold) || (dAngularDistance > dAngularDistanceThreshold)) {
 	(*itEntry).tsTransform = *t;
-	cout << "Log " << strMsgFrame << " / " << strMsgChild << endl;
+	
 	return true;
       }
     }
