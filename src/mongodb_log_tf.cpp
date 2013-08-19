@@ -28,6 +28,7 @@
 // ROS
 #include <ros/ros.h>
 #include <tf/tfMessage.h>
+#include <tf/LinearMath/Quaternion.h>
 
 // MongoDB
 #include <mongo/client/dbclient.h>
@@ -61,6 +62,7 @@ static pthread_mutex_t qsize_mutex = PTHREAD_MUTEX_INITIALIZER;
 bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iterator t) {
   string strMsgFrame = t->header.frame_id;
   string strMsgChild = t->child_frame_id;
+  bool bFound = false;
   
   for(list<struct PoseStampedMemoryEntry>::iterator itEntry = lstPoseStampedMemory.begin();
       itEntry != lstPoseStampedMemory.end();
@@ -72,20 +74,39 @@ bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iter
     if((strEntryFrame == strMsgFrame && strEntryChild == strMsgChild) ||
        (strEntryFrame == strMsgChild && strEntryChild == strMsgFrame)) {
       // Yes, it is. Check vectorial and angular distance.
+      bFound = true;
+      
       double dVectorialDistance = sqrt(((t->transform.translation.x - (*itEntry).tsTransform.transform.translation.x) *
 					(t->transform.translation.x - (*itEntry).tsTransform.transform.translation.x)) +
 				       ((t->transform.translation.y - (*itEntry).tsTransform.transform.translation.y) *
 					(t->transform.translation.y - (*itEntry).tsTransform.transform.translation.y)) +
 				       ((t->transform.translation.z - (*itEntry).tsTransform.transform.translation.z) *
 					(t->transform.translation.z - (*itEntry).tsTransform.transform.translation.z)));
-      double dAngularDistance = 0.0; // TODO(winkler): Implement this.
+      
+      tf::Quaternion q1(t->transform.rotation.x, t->transform.rotation.y, t->transform.rotation.z, t->transform.rotation.w);
+      tf::Quaternion q2((*itEntry).tsTransform.transform.rotation.x,
+			(*itEntry).tsTransform.transform.rotation.y,
+			(*itEntry).tsTransform.transform.rotation.z,
+			(*itEntry).tsTransform.transform.rotation.w);
+      
+      double dAngularDistance = 2.0 * fabs(q1.angle(q2)); // TODO(winkler): Implement this.
       
       if((dVectorialDistance > dVectorialDistanceThreshold) || (dAngularDistance > dAngularDistanceThreshold)) {
 	(*itEntry).tsTransform = *t;
-	
+	cout << "Log " << strMsgFrame << " / " << strMsgChild << endl;
 	return true;
       }
     }
+  }
+  
+  if(!bFound) {
+    // This transform is new, so log it.
+    struct PoseStampedMemoryEntry psEntry;
+    psEntry.tsTransform = *t;
+    // TODO(winkler): Note the timestamp here.
+    lstPoseStampedMemory.push_back(psEntry);
+    
+    return true;
   }
   
   return false;
@@ -106,17 +127,17 @@ void msg_callback(const tf::tfMessage::ConstPtr& msg) {
       
       BSONObjBuilder transform_stamped;
       BSONObjBuilder transform;
-      transform_stamped.append("header", BSON("seq" << t->header.seq
+      transform_stamped.append("header", BSON(   "seq" << t->header.seq
 					      << "stamp" << stamp
 					      << "frame_id" << t->header.frame_id));
       transform_stamped.append("child_frame_id", t->child_frame_id);
       transform.append("translation", BSON(   "x" << t->transform.translation.x
-					      << "y" << t->transform.translation.y
-					      << "z" << t->transform.translation.z));
+					   << "y" << t->transform.translation.y
+					   << "z" << t->transform.translation.z));
       transform.append("rotation", BSON(   "x" << t->transform.rotation.x
-					   << "y" << t->transform.rotation.y
-					   << "z" << t->transform.rotation.z
-					   << "w" << t->transform.rotation.w));
+					<< "y" << t->transform.rotation.y
+					<< "z" << t->transform.rotation.z
+					<< "w" << t->transform.rotation.w));
       transform_stamped.append("transform", transform.obj());
       transforms.push_back(transform_stamped.obj());
     }
