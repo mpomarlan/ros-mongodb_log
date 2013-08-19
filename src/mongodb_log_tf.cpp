@@ -38,12 +38,13 @@ using namespace mongo;
 
 struct PoseStampedMemoryEntry {
   geometry_msgs::TransformStamped tsTransform;
-  time_t timeLastSeen;
 };
 
 double dVectorialDistanceThreshold;
 double dAngularDistanceThreshold;
+double dTimeDistanceThreshold;
 list<struct PoseStampedMemoryEntry> lstPoseStampedMemory;
+bool bAlwaysLog;
 
 DBClientConnection *mongodb_conn;
 std::string collection;
@@ -60,6 +61,12 @@ static pthread_mutex_t drop_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t qsize_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iterator t) {
+  if(bAlwaysLog) {
+    // When this flag is set, always return true immediately (and
+    // don't keep track of logged transforms).
+    return true;
+  }
+  
   string strMsgFrame = t->header.frame_id;
   string strMsgChild = t->child_frame_id;
   bool bFound = false;
@@ -69,8 +76,8 @@ bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iter
       itEntry++) {
     string strEntryFrame = (*itEntry).tsTransform.header.frame_id;
     string strEntryChild = (*itEntry).tsTransform.child_frame_id;
-    // Is this the same transform as in tfMsg?
     
+    // Is this the same transform as in tfMsg?
     if((strEntryFrame == strMsgFrame && strEntryChild == strMsgChild) ||
        (strEntryFrame == strMsgChild && strEntryChild == strMsgFrame)) {
       // Yes, it is. Check vectorial and angular distance.
@@ -91,7 +98,13 @@ bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iter
       
       double dAngularDistance = 2.0 * fabs(q1.angle(q2)); // TODO(winkler): Implement this.
       
-      if((dVectorialDistance > dVectorialDistanceThreshold) || (dAngularDistance > dAngularDistanceThreshold)) {
+      double dTimeDistance = fabs((t->header.stamp.sec * 1000.0 + t->header.stamp.nsec / 1000000.0) -
+				  ((*itEntry).tsTransform.header.stamp.sec * 1000.0 + (*itEntry).tsTransform.header.stamp.nsec / 1000000.0));
+      
+      if(((dVectorialDistance > dVectorialDistanceThreshold) ||
+	  (dAngularDistance > dAngularDistanceThreshold) ||
+	  (dTimeDistanceThreshold > 0 &&
+	   (dTimeDistance > dTimeDistanceThreshold)))) {
 	(*itEntry).tsTransform = *t;
 	
 	return true;
@@ -194,6 +207,8 @@ int main(int argc, char **argv) {
 				       // same transform before it
 				       // gets logged again
   dAngularDistanceThreshold = 0.005; // Same for angular distance
+  dTimeDistanceThreshold = 1.0; // And same for timely distance (in seconds)
+  bAlwaysLog = false;
   
   int c;
   while ((c = getopt(argc, argv, "t:m:n:c:")) != -1) {
@@ -208,6 +223,8 @@ int main(int argc, char **argv) {
       nodename = optarg;
     } else if (c == 'c') {
       collection = optarg;
+    } else if (c == 'a') {
+      bAlwaysLog = true;
     }
   }
   
