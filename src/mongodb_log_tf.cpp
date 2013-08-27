@@ -98,8 +98,8 @@ bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iter
       
       double dAngularDistance = 2.0 * fabs(q1.angle(q2)); // TODO(winkler): Implement this.
       
-      double dTimeDistance = fabs((t->header.stamp.sec * 1000.0 + t->header.stamp.nsec / 1000000.0) -
-				  ((*itEntry).tsTransform.header.stamp.sec * 1000.0 + (*itEntry).tsTransform.header.stamp.nsec / 1000000.0));
+      double dTimeDistance = (fabs((t->header.stamp.sec * 1000.0 + t->header.stamp.nsec / 1000000.0) -
+				   ((*itEntry).tsTransform.header.stamp.sec * 1000.0 + (*itEntry).tsTransform.header.stamp.nsec / 1000000.0)) / 1000.0);
       
       if(((dVectorialDistance > dVectorialDistanceThreshold) ||
 	  (dAngularDistance > dAngularDistanceThreshold) ||
