@@ -36,14 +36,14 @@
 using namespace mongo;
 
 
-struct PoseStampedMemoryEntry {
+typedef struct {
   geometry_msgs::TransformStamped tsTransform;
-};
+} PoseStampedMemoryEntry;
 
-double dVectorialDistanceThreshold;
-double dAngularDistanceThreshold;
-double dTimeDistanceThreshold;
-list<struct PoseStampedMemoryEntry> lstPoseStampedMemory;
+float fVectorialDistanceThreshold;
+float fAngularDistanceThreshold;
+float fTimeDistanceThreshold;
+list<PoseStampedMemoryEntry> lstPoseStampedMemory;
 bool bAlwaysLog;
 
 DBClientConnection *mongodb_conn;
@@ -71,7 +71,7 @@ bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iter
   string strMsgChild = t->child_frame_id;
   bool bFound = false;
   
-  for(list<struct PoseStampedMemoryEntry>::iterator itEntry = lstPoseStampedMemory.begin();
+  for(list<PoseStampedMemoryEntry>::iterator itEntry = lstPoseStampedMemory.begin();
       itEntry != lstPoseStampedMemory.end();
       itEntry++) {
     string strEntryFrame = (*itEntry).tsTransform.header.frame_id;
@@ -83,12 +83,12 @@ bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iter
       // Yes, it is. Check vectorial and angular distance.
       bFound = true;
       
-      double dVectorialDistance = sqrt(((t->transform.translation.x - (*itEntry).tsTransform.transform.translation.x) *
-					(t->transform.translation.x - (*itEntry).tsTransform.transform.translation.x)) +
-				       ((t->transform.translation.y - (*itEntry).tsTransform.transform.translation.y) *
-					(t->transform.translation.y - (*itEntry).tsTransform.transform.translation.y)) +
-				       ((t->transform.translation.z - (*itEntry).tsTransform.transform.translation.z) *
-					(t->transform.translation.z - (*itEntry).tsTransform.transform.translation.z)));
+      float fVectorialDistance = sqrt(((t->transform.translation.x - (*itEntry).tsTransform.transform.translation.x) *
+				       (t->transform.translation.x - (*itEntry).tsTransform.transform.translation.x)) +
+				      ((t->transform.translation.y - (*itEntry).tsTransform.transform.translation.y) *
+				       (t->transform.translation.y - (*itEntry).tsTransform.transform.translation.y)) +
+				      ((t->transform.translation.z - (*itEntry).tsTransform.transform.translation.z) *
+				       (t->transform.translation.z - (*itEntry).tsTransform.transform.translation.z)));
       
       tf::Quaternion q1(t->transform.rotation.x, t->transform.rotation.y, t->transform.rotation.z, t->transform.rotation.w);
       tf::Quaternion q2((*itEntry).tsTransform.transform.rotation.x,
@@ -96,15 +96,17 @@ bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iter
 			(*itEntry).tsTransform.transform.rotation.z,
 			(*itEntry).tsTransform.transform.rotation.w);
       
-      double dAngularDistance = 2.0 * fabs(q1.angle(q2)); // TODO(winkler): Implement this.
+      float fAngularDistance = 2.0 * fabs(q1.angle(q2));
       
-      double dTimeDistance = (fabs((t->header.stamp.sec * 1000.0 + t->header.stamp.nsec / 1000000.0) -
-				   ((*itEntry).tsTransform.header.stamp.sec * 1000.0 + (*itEntry).tsTransform.header.stamp.nsec / 1000000.0)) / 1000.0);
+      float fTimeDistance = (fabs((t->header.stamp.sec * 1000.0 + t->header.stamp.nsec / 1000000.0) -
+				  ((*itEntry).tsTransform.header.stamp.sec * 1000.0 + (*itEntry).tsTransform.header.stamp.nsec / 1000000.0)) / 1000.0);
       
-      if(((dVectorialDistance > dVectorialDistanceThreshold) ||
-	  (dAngularDistance > dAngularDistanceThreshold) ||
-	  (dTimeDistanceThreshold > 0 &&
-	   (dTimeDistance > dTimeDistanceThreshold)))) {
+      if(((fVectorialDistance > fVectorialDistanceThreshold) ||
+	  (fAngularDistance > fAngularDistanceThreshold) ||
+	  (fTimeDistanceThreshold > 0 &&
+	   (fTimeDistance > fTimeDistanceThreshold)))) {
+	// Requirements met, this transform should be logged and the
+	// stored entry renewed.
 	(*itEntry).tsTransform = *t;
 	
 	return true;
@@ -114,9 +116,8 @@ bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iter
   
   if(!bFound) {
     // This transform is new, so log it.
-    struct PoseStampedMemoryEntry psEntry;
+    PoseStampedMemoryEntry psEntry;
     psEntry.tsTransform = *t;
-    // TODO(winkler): Note the timestamp here.
     lstPoseStampedMemory.push_back(psEntry);
     
     return true;
@@ -154,21 +155,21 @@ void msg_callback(const tf::tfMessage::ConstPtr& msg) {
       transform_stamped.append("transform", transform.obj());
       transforms.push_back(transform_stamped.obj());
     }
+  }
+  
+  if(bDidLogTransforms) {
+    mongodb_conn->insert(collection, BSON("transforms" << transforms <<
+					  "__recorded" << Date_t(time(NULL) * 1000) <<
+					  "__topic" << topic));
     
-    if(bDidLogTransforms) {
-      mongodb_conn->insert(collection, BSON("transforms" << transforms <<
-					    "__recorded" << Date_t(time(NULL) * 1000) <<
-					    "__topic" << topic));
-      
-      // If we'd get access to the message queue this could be more useful
-      // https://code.ros.org/trac/ros/ticket/744
-      pthread_mutex_lock(&in_counter_mutex);
-      ++in_counter;
-      pthread_mutex_unlock(&in_counter_mutex);
-      pthread_mutex_lock(&out_counter_mutex);
-      ++out_counter;
-      pthread_mutex_unlock(&out_counter_mutex);
-    }
+    // If we'd get access to the message queue this could be more useful
+    // https://code.ros.org/trac/ros/ticket/744
+    pthread_mutex_lock(&in_counter_mutex);
+    ++in_counter;
+    pthread_mutex_unlock(&in_counter_mutex);
+    pthread_mutex_lock(&out_counter_mutex);
+    ++out_counter;
+    pthread_mutex_unlock(&out_counter_mutex);
   }
 }
 
@@ -201,13 +202,13 @@ int main(int argc, char **argv) {
   
   in_counter = out_counter = drop_counter = qsize = 0;
   
-  dVectorialDistanceThreshold = 0.005; // Distance threshold in terms
+  fVectorialDistanceThreshold = 0.005; // Distance threshold in terms
 				       // of vector distance between
 				       // an old and a new pose of the
 				       // same transform before it
 				       // gets logged again
-  dAngularDistanceThreshold = 0.005; // Same for angular distance
-  dTimeDistanceThreshold = 1.0; // And same for timely distance (in seconds)
+  fAngularDistanceThreshold = 0.005; // Same for angular distance
+  fTimeDistanceThreshold = 1.0; // And same for timely distance (in seconds)
   bAlwaysLog = false;
   
   int c;
@@ -225,6 +226,12 @@ int main(int argc, char **argv) {
       collection = optarg;
     } else if (c == 'a') {
       bAlwaysLog = true;
+    } else if (c == 'k') {
+      sscanf(optarg, "%f", &fVectorialDistanceThreshold);
+    } else if (c == 'l') {
+      sscanf(optarg, "%f", &fAngularDistanceThreshold);
+    } else if (c == 'm') {
+      sscanf(optarg, "%f", &fTimeDistanceThreshold);
     }
   }
   
