@@ -38,6 +38,7 @@ import sys
 import time
 import pprint
 import string
+import socket
 import subprocess
 from threading import Thread, Timer
 from multiprocessing import Process, Lock, Condition, Queue, Value, current_process, Event
