@@ -8,19 +8,15 @@
   <license>GPLv2+</license>
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/mongodb_log</url>
-  <depend package="roslua"/>
   <depend package="rospy"/>
   <depend package="roslib"/>
   <depend package="rosgraph"/>
   <depend package="rostopic"/>
   <depend package="tf"/>
   <depend package="sensor_msgs"/>
-  <depend package="mongodb"/>
   
   <!-- Designator Integration -->
   <depend package="designator_integration"/>
   <depend package="designator_integration_msgs"/>
-  
-  <!-- <depend package="rviz_intel"/> -->
 
 </package>
