@@ -810,7 +810,7 @@ def main(argv):
     except socket.error:
         print("Failed to communicate with master")
 
-    mongowriter = MongoWriter(topics=args, graph_topics = options.graph_topics,
+    mongowriter = MongoWriter(topics=rospy.myargv(args), graph_topics = options.graph_topics,
                               graph_dir = options.graph_dir,
                               graph_clear = options.graph_clear,
                               graph_daemon = options.graph_daemon,
