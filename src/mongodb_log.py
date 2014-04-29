@@ -38,6 +38,7 @@ import sys
 import time
 import pprint
 import string
+import socket
 import subprocess
 from threading import Thread, Timer
 from multiprocessing import Process, Lock, Condition, Queue, Value, current_process, Event
@@ -813,7 +814,7 @@ def main(argv):
     except socket.error:
         print("Failed to communicate with master")
 
-    mongowriter = MongoWriter(topics=args, graph_topics = options.graph_topics,
+    mongowriter = MongoWriter(topics=rospy.myargv(args), graph_topics = options.graph_topics,
                               graph_dir = options.graph_dir,
                               graph_clear = options.graph_clear,
                               graph_daemon = options.graph_daemon,
