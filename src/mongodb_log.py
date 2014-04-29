@@ -417,6 +417,10 @@ class MongoWriter(object):
         if not self.no_specific and msg_class == tfMessage:
             print("DETECTED transform topic %s, using fast C++ logger" % topic)
             node_path = find_node(PACKAGE_NAME, "mongodb_log_tf")
+            #additional_parameters = ["-a"]
+            #additional_parameters = ["-k" "0.005" "-l" "0.005" "-g" "0"]
+            #additional_parameters = ["-k" "0.025" "-l" "0.025" "-g" "0"]
+            #additional_parameters = ["-k" "0.100" "-l" "0.100" "-g" "0"]
             if not node_path:
                 print("FAILED to detect mongodb_log_tf, falling back to generic logger (did not build package?)")
         elif not self.no_specific and msg_class == PointCloud:

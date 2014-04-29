@@ -202,17 +202,17 @@ int main(int argc, char **argv) {
   
   in_counter = out_counter = drop_counter = qsize = 0;
   
-  fVectorialDistanceThreshold = 0.005; // Distance threshold in terms
+  fVectorialDistanceThreshold = 0.100; // Distance threshold in terms
 				       // of vector distance between
 				       // an old and a new pose of the
 				       // same transform before it
 				       // gets logged again
-  fAngularDistanceThreshold = 0.005; // Same for angular distance
+  fAngularDistanceThreshold = 0.100; // Same for angular distance
   fTimeDistanceThreshold = 1.0; // And same for timely distance (in seconds)
-  bAlwaysLog = false;
+  bAlwaysLog = true;
   
   int c;
-  while ((c = getopt(argc, argv, "t:m:n:c:")) != -1) {
+  while ((c = getopt(argc, argv, "t:m:n:c:ak:l:g:")) != -1) {
     if ((c == '?') || (c == ':')) {
       printf("Usage: %s -t topic -m mongodb -n nodename -c collection\n", argv[0]);
       exit(-1);
@@ -230,7 +230,7 @@ int main(int argc, char **argv) {
       sscanf(optarg, "%f", &fVectorialDistanceThreshold);
     } else if (c == 'l') {
       sscanf(optarg, "%f", &fAngularDistanceThreshold);
-    } else if (c == 'm') {
+    } else if (c == 'g') {
       sscanf(optarg, "%f", &fTimeDistanceThreshold);
     }
   }
