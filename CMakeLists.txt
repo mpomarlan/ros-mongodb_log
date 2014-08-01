@@ -27,6 +27,13 @@ link_directories(${Boost_LIBRARY_DIRS})
 target_link_libraries(mongodb_log_tf
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
+  # NOTE(winkler): This is a dirty, dirty workaround as boost seems to
+  # be found in the wrong place (failing linking). Hopefully, these
+  # files are present on your system. If they are not, linking will
+  # fail definitely. Resolving the slashed paths into
+  # `/usr/lib/libboost_filesystem-mt.so` somehow fails as if the whole
+  # thing wasn't there, which is pretty weird. Will try to fix this
+  # ASAP.
   /usr/lib/gcc/x86_64-linux-gnu/4.7/../../../../lib/libboost_filesystem-mt.so
   mongoclient
 )
