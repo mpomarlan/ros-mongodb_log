@@ -1,35 +1,60 @@
-cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+cmake_minimum_required(VERSION 2.8.3)
+project(mongodb_log)
 
-# Set the build type.  Options are:
-#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
-#  Debug          : w/ debug symbols, w/o optimization
-#  Release        : w/o debug symbols, w/ optimization
-#  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-#set(ROS_BUILD_TYPE RelWithDebInfo)
+find_package(catkin REQUIRED COMPONENTS
+  roscpp roslib designator_integration designator_integration_msgs)
+find_package(Boost REQUIRED COMPONENTS
+  thread system filesystem)
 
-rosbuild_init()
-rosbuild_add_boost_directories()
+catkin_package(
+  INCLUDE_DIRS
+  LIBRARIES
+  CATKIN_DEPENDS roscpp roslib designator_integration designator_integration_msgs
+)
 
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+include_directories(include ${Boost_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 
-#rosbuild_genmsg()
-#rosbuild_gensrv()
+add_executable(mongodb_log_tf src/mongodb_log_tf.cpp)
+add_executable(mongodb_log_pcl src/mongodb_log_pcl.cpp)
+add_executable(mongodb_log_cimg src/mongodb_log_cimg.cpp)
+add_executable(mongodb_log_desig src/mongodb_log_desig.cpp)
+add_executable(benchmark_produce_tf src/benchmark/produce_tf.cpp)
 
-link_libraries(mongoclient)
-rosbuild_add_executable(mongodb_log_tf src/mongodb_log_tf.cpp)
-rosbuild_add_executable(mongodb_log_pcl src/mongodb_log_pcl.cpp)
-rosbuild_add_executable(mongodb_log_cimg src/mongodb_log_cimg.cpp)
-rosbuild_add_executable(mongodb_log_desig src/mongodb_log_desig.cpp)
-rosbuild_add_executable(benchmark_produce_tf src/benchmark/produce_tf.cpp)
+add_dependencies(mongodb_log_desig designator_integration_generate_messages_cpp)
 
-target_link_libraries(mongodb_log_desig DesignatorIntegration)
+link_directories(${Boost_LIBRARY_DIRS})
 
-# rosbuild_add_executable(rosmongodb_log_trimesh src/rosmongodb_log_trimesh.cpp)
-rosbuild_link_boost(mongodb_log_cimg system)
-rosbuild_link_boost(mongodb_log_pcl system)
-rosbuild_link_boost(mongodb_log_tf system)
-rosbuild_link_boost(mongodb_log_desig system)
-#rosbuild_link_boost(mongodb_log_trimesh system)
+target_link_libraries(mongodb_log_tf
+  ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+  /usr/lib/gcc/x86_64-linux-gnu/4.7/../../../../lib/libboost_filesystem-mt.so
+  mongoclient
+)
+
+target_link_libraries(mongodb_log_pcl
+  ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+  /usr/lib/gcc/x86_64-linux-gnu/4.7/../../../../lib/libboost_filesystem-mt.so
+  mongoclient
+)
+
+target_link_libraries(mongodb_log_cimg
+  ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+  /usr/lib/gcc/x86_64-linux-gnu/4.7/../../../../lib/libboost_filesystem-mt.so
+  mongoclient
+)
+
+target_link_libraries(mongodb_log_desig
+  ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+  /usr/lib/gcc/x86_64-linux-gnu/4.7/../../../../lib/libboost_filesystem-mt.so
+  mongoclient
+)
+
+target_link_libraries(benchmark_produce_tf
+  ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+  /usr/lib/gcc/x86_64-linux-gnu/4.7/../../../../lib/libboost_filesystem-mt.so
+  mongoclient
+)
