@@ -3,16 +3,15 @@ project(mongodb_log)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp roslib designator_integration designator_integration_msgs)
-find_package(Boost REQUIRED COMPONENTS
-  thread system filesystem)
 
 catkin_package(
-  INCLUDE_DIRS
+  INCLUDE_DIRS ${catkin_INCLUDE_DIRS}
   LIBRARIES
   CATKIN_DEPENDS roscpp roslib designator_integration designator_integration_msgs
 )
 
-include_directories(include ${Boost_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
+include_directories(
+  ${catkin_INCLUDE_DIRS})
 
 add_executable(mongodb_log_tf src/mongodb_log_tf.cpp)
 add_executable(mongodb_log_pcl src/mongodb_log_pcl.cpp)
@@ -22,46 +21,56 @@ add_executable(benchmark_produce_tf src/benchmark/produce_tf.cpp)
 
 add_dependencies(mongodb_log_desig designator_integration_generate_messages_cpp)
 
-link_directories(${Boost_LIBRARY_DIRS})
-
 target_link_libraries(mongodb_log_tf
   ${catkin_LIBRARIES}
-  ${Boost_LIBRARIES}
-  # NOTE(winkler): This is a dirty, dirty workaround as boost seems to
-  # be found in the wrong place (failing linking). Hopefully, these
-  # files are present on your system. If they are not, linking will
-  # fail definitely. Resolving the slashed paths into
-  # `/usr/lib/libboost_filesystem-mt.so` somehow fails as if the whole
-  # thing wasn't there, which is pretty weird. Will try to fix this
-  # ASAP.
-  /usr/lib/gcc/x86_64-linux-gnu/4.7/../../../../lib/libboost_filesystem-mt.so
+  # NOTE(winkler): Yes, this looks awkward, and plain wrong. One might
+  # suspect that the two lines actually mean the same, as their paths
+  # resolve to the same file. If one of them is removed, though, boost
+  # is not linked properly anymore. When cmake'ing, CMake complains
+  # that one might shadow the other. Still need to figure out why this
+  # happens, but this hack now works, and seems to be at least
+  # semi-portable between different Ubuntu versions. If you have a
+  # clue and are a CMake guru: Please have a look! The culprit might
+  # be `mongoclient'.
+  "/usr/lib/x86_64-linux-gnu/libboost_filesystem.so"
+  "/usr/lib/gcc/../x86_64-linux-gnu/libboost_filesystem.so"
+  ssl
+  crypto
   mongoclient
 )
 
 target_link_libraries(mongodb_log_pcl
   ${catkin_LIBRARIES}
-  ${Boost_LIBRARIES}
-  /usr/lib/gcc/x86_64-linux-gnu/4.7/../../../../lib/libboost_filesystem-mt.so
+  "/usr/lib/x86_64-linux-gnu/libboost_filesystem.so"
+  "/usr/lib/gcc/../x86_64-linux-gnu/libboost_filesystem.so"
+  ssl
+  crypto
   mongoclient
 )
 
 target_link_libraries(mongodb_log_cimg
   ${catkin_LIBRARIES}
-  ${Boost_LIBRARIES}
-  /usr/lib/gcc/x86_64-linux-gnu/4.7/../../../../lib/libboost_filesystem-mt.so
+  "/usr/lib/x86_64-linux-gnu/libboost_filesystem.so"
+  "/usr/lib/gcc/../x86_64-linux-gnu/libboost_filesystem.so"
+  ssl
+  crypto
   mongoclient
 )
 
 target_link_libraries(mongodb_log_desig
   ${catkin_LIBRARIES}
-  ${Boost_LIBRARIES}
-  /usr/lib/gcc/x86_64-linux-gnu/4.7/../../../../lib/libboost_filesystem-mt.so
+  "/usr/lib/x86_64-linux-gnu/libboost_filesystem.so"
+  "/usr/lib/gcc/../x86_64-linux-gnu/libboost_filesystem.so"
+  ssl
+  crypto
   mongoclient
 )
 
 target_link_libraries(benchmark_produce_tf
   ${catkin_LIBRARIES}
-  ${Boost_LIBRARIES}
-  /usr/lib/gcc/x86_64-linux-gnu/4.7/../../../../lib/libboost_filesystem-mt.so
+  "/usr/lib/x86_64-linux-gnu/libboost_filesystem.so"
+  "/usr/lib/gcc/../x86_64-linux-gnu/libboost_filesystem.so"
+  ssl
+  crypto
   mongoclient
 )
