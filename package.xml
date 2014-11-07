@@ -6,13 +6,10 @@
   <version>0.0.0</version>
   <description>MongoDB backed system for logging ROS topics</description>
   
-  <maintainer email="winkler@cs.uni-bremen.de">Jan Winkler</maintainer>
+  <maintainer email="email@domain.com">Maintainer</maintainer>
   
   <license>GPLv2+</license>
   
-  <!-- <url type="website">https://www.github.com/fairlight1337/beliefstate</url> -->
-  <!-- <url type="website">http://www.cram-system.org/doc/logging/beliefstate</url> -->
-
   <author email="email@domain.com">Tim Niemueller</author>
   <author email="winkler@cs.uni-bremen.de">Jan Winkler</author>
   
