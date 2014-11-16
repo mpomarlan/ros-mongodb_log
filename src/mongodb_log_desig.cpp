@@ -31,7 +31,7 @@
 // Designator Integration
 #include <designator_integration_msgs/DesignatorRequest.h>
 #include <designator_integration_msgs/DesignatorResponse.h>
-#include <designators/CDesignator.h>
+#include <designators/Designator.h>
 
 using namespace std;
 using namespace mongo;
@@ -59,14 +59,14 @@ enum OperationMode {
 };
 
 
-BSONObj keyValuePairToBSON(CKeyValuePair *ckvpPair) {
+BSONObj keyValuePairToBSON(designator_integration::KeyValuePair *ckvpPair) {
   BSONObjBuilder bobBuilder;
   
-  if(ckvpPair->type() == STRING) {
+  if(ckvpPair->type() == designator_integration::KeyValuePair::ValueType::STRING) {
     bobBuilder.append(ckvpPair->key(), ckvpPair->stringValue());
-  } else if(ckvpPair->type() == FLOAT) {
+  } else if(ckvpPair->type() == designator_integration::KeyValuePair::ValueType::FLOAT) {
     bobBuilder.append(ckvpPair->key(), ckvpPair->floatValue());
-  } else if(ckvpPair->type() == POSE) {
+  } else if(ckvpPair->type() == designator_integration::KeyValuePair::ValueType::POSE) {
     geometry_msgs::Pose psPose = ckvpPair->poseValue();
     BSONObjBuilder bobTransform;
     bobTransform.append("position",
@@ -79,7 +79,7 @@ BSONObj keyValuePairToBSON(CKeyValuePair *ckvpPair) {
 			     << "z" << psPose.orientation.z
 			     << "w" << psPose.orientation.w));
     bobBuilder.append(ckvpPair->key(), bobTransform.obj());
-  } else if(ckvpPair->type() == POSESTAMPED) {
+  } else if(ckvpPair->type() == designator_integration::KeyValuePair::ValueType::POSESTAMPED) {
     geometry_msgs::PoseStamped psPoseStamped = ckvpPair->poseStampedValue();
     Date_t stamp = psPoseStamped.header.stamp.sec * 1000.0 + psPoseStamped.header.stamp.nsec / 1000000.0;
     
@@ -100,14 +100,12 @@ BSONObj keyValuePairToBSON(CKeyValuePair *ckvpPair) {
     			     << "w" << psPoseStamped.pose.orientation.w));
     bobTransformStamped.append("pose", bobTransform.obj());
     bobBuilder.append(ckvpPair->key(), bobTransformStamped.obj());
-  } else if(ckvpPair->type() == LIST) {
+  } else if(ckvpPair->type() == designator_integration::KeyValuePair::ValueType::LIST) {
     BSONObjBuilder bobChildren;
-    list<CKeyValuePair*> lstChildren = ckvpPair->children();
+    list<designator_integration::KeyValuePair*> lstChildren = ckvpPair->children();
     
-    for(list<CKeyValuePair*>::iterator itChild = lstChildren.begin();
-	itChild != lstChildren.end();
-	itChild++) {
-      bobChildren.appendElements(keyValuePairToBSON(*itChild));
+    for(designator_integration::KeyValuePair* kvpChild : lstChildren) {
+      bobChildren.appendElements(keyValuePairToBSON(kvpChild));
     }
     
     bobBuilder.append(ckvpPair->key(), bobChildren.obj());
@@ -116,29 +114,27 @@ BSONObj keyValuePairToBSON(CKeyValuePair *ckvpPair) {
   return bobBuilder.obj();
 }
 
-void logDesignator(CDesignator *desigLog) {
+void logDesignator(designator_integration::Designator *desigLog) {
   BSONObjBuilder bobDesig;
   std::vector<BSONObj> vecChildren;
   
-  list<CKeyValuePair*> lstChildren = desigLog->children();
+  list<designator_integration::KeyValuePair*> lstChildren = desigLog->children();
   
-  for(list<CKeyValuePair*>::iterator itChild = lstChildren.begin();
-      itChild != lstChildren.end();
-      itChild++) {
-    bobDesig.appendElements(keyValuePairToBSON(*itChild));
+  for(designator_integration::KeyValuePair* kvpChild : lstChildren) {
+    bobDesig.appendElements(keyValuePairToBSON(kvpChild));
   }
   
   string strDesigType = "unknown";
   switch(desigLog->type()) {
-  case ACTION:
+  case designator_integration::Designator::DesignatorType::ACTION:
     strDesigType = "action";
     break;
 
-  case OBJECT:
+  case designator_integration::Designator::DesignatorType::OBJECT:
     strDesigType = "object";
     break;
 
-  case LOCATION:
+  case designator_integration::Designator::DesignatorType::LOCATION:
     strDesigType = "location";
     break;
     
@@ -163,24 +159,25 @@ void logDesignator(CDesignator *desigLog) {
 void cbDesignatorResponseMsg(const designator_integration_msgs::DesignatorResponse &msg) {
   vector<designator_integration_msgs::Designator> vecDesigs = msg.designators;
   
-  for(vector<designator_integration_msgs::Designator>::iterator itDesig = vecDesigs.begin();
-      itDesig != vecDesigs.end();
-      itDesig++) {
-    CDesignator *desigLog = new CDesignator(*itDesig);
+  for(designator_integration_msgs::Designator desigmsgCurrent : vecDesigs) {
+    designator_integration::Designator* desigLog = new designator_integration::Designator(desigmsgCurrent);
     logDesignator(desigLog);
+    
     delete desigLog;
   }
 }
 
 void cbDesignatorRequestMsg(const designator_integration_msgs::DesignatorRequest &msg) {
-  CDesignator *desigLog = new CDesignator(msg.designator);
+  designator_integration::Designator* desigLog = new designator_integration::Designator(msg.designator);
   logDesignator(desigLog);
+  
   delete desigLog;
 }
 
 void cbDesignatorMsg(const designator_integration_msgs::Designator &msg) {
-  CDesignator *desigLog = new CDesignator(msg);
+  designator_integration::Designator* desigLog = new designator_integration::Designator(msg);
   logDesignator(desigLog);
+  
   delete desigLog;
 }
 

@@ -6,6 +6,16 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Boost REQUIRED COMPONENTS thread filesystem)
 
+set(COMPILE_DEBUG 0)
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+  if(COMPILE_DEBUG)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -pg")
+  else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -O2")
+  endif()
+endif()
+
 catkin_package(
   INCLUDE_DIRS ${catkin_INCLUDE_DIRS}
   LIBRARIES
@@ -19,7 +29,7 @@ include_directories(
 add_executable(mongodb_log_tf src/mongodb_log_tf.cpp)
 add_executable(mongodb_log_pcl src/mongodb_log_pcl.cpp)
 add_executable(mongodb_log_cimg src/mongodb_log_cimg.cpp)
-#add_executable(mongodb_log_desig src/mongodb_log_desig.cpp)
+add_executable(mongodb_log_desig src/mongodb_log_desig.cpp)
 add_executable(benchmark_produce_tf src/benchmark/produce_tf.cpp)
 
 #add_dependencies(mongodb_log_desig designator_integration_generate_messages_cpp)
@@ -48,13 +58,13 @@ target_link_libraries(mongodb_log_cimg
   ${Boost_LIBRARIES}
 )
 
-# target_link_libraries(mongodb_log_desig
-#   ${catkin_LIBRARIES}
-#   ssl
-#   crypto
-#   mongoclient
-#   ${Boost_LIBRARIES}
-# )
+target_link_libraries(mongodb_log_desig
+  ${catkin_LIBRARIES}
+  ssl
+  crypto
+  mongoclient
+  ${Boost_LIBRARIES}
+)
 
 target_link_libraries(benchmark_produce_tf
   ${catkin_LIBRARIES}
