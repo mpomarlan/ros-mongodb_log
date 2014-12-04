@@ -191,7 +191,7 @@ class WorkerProcess(object):
         if isinstance(v, rospy.Message):
             return self.message_to_dict(v)
         elif isinstance(v, genpy.rostime.Time):
-            t = datetime.fromtimestamp(v.secs)
+            t = datetime.utcfromtimestamp(v.secs)
             return t + timedelta(microseconds=v.nsecs / 1000.)
         elif isinstance(v, genpy.rostime.Duration):
             return v.secs + v.nsecs / 1000000000.
