@@ -49,6 +49,7 @@ from datetime import datetime, timedelta
 from time import sleep
 from random import randint
 from tf.msg import tfMessage
+from tf2_msgs.msg import TFMessage
 from sensor_msgs.msg import PointCloud, CompressedImage
 from roslib.packages import find_node
 from designator_integration_msgs.msg import DesignatorRequest
@@ -414,8 +415,8 @@ class MongoWriter(object):
         w = None
         node_path = None
         additional_parameters = [];
-        
-        if not self.no_specific and msg_class == tfMessage:
+       
+        if not self.no_specific and (msg_class == tfMessage) or (msg_class == TFMessage):
             print("DETECTED transform topic %s, using fast C++ logger" % topic)
             node_path = find_node(PACKAGE_NAME, "mongodb_log_tf")
             #additional_parameters = ["-a"]
