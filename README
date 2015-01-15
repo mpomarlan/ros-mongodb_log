@@ -36,3 +36,10 @@ The ROS wiki page gives more details on how to get started on ROS [3].
 [2] http://www.fawkesrobotics.org/projects/mongodb-log/
 [3] http://www.ros.org/wiki/mongodb_log
 
+
+Run /tf logger separately
+===
+
+```bash
+$ rosrun mongodb_log mongodb_log_tf -t /tf -m localhost:27017 -n tflogger -c roslog
+```
