@@ -40,6 +40,6 @@ The ROS wiki page gives more details on how to get started on ROS [3].
 Run /tf logger separately
 ===
 
-```bash
-$ rosrun mongodb_log mongodb_log_tf -t /tf -m localhost:27017 -n tflogger -c roslog
-```
+<pre><code>
+$ rosrun mongodb_log mongodb_log_tf -t /tf -m localhost:27017 -n tflogger -c roslog.tf
+</code></pre>
