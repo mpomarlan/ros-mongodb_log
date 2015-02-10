@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(mongodb_log)
 
 find_package(catkin REQUIRED COMPONENTS
-  roscpp roslib designator_integration designator_integration_msgs)
+  roscpp roslib designator_integration_cpp designator_integration_msgs)
 
 find_package(Boost REQUIRED COMPONENTS thread filesystem)
 
@@ -19,7 +19,7 @@ endif()
 catkin_package(
   INCLUDE_DIRS ${catkin_INCLUDE_DIRS}
   LIBRARIES
-  CATKIN_DEPENDS roscpp roslib designator_integration designator_integration_msgs
+  CATKIN_DEPENDS roscpp roslib designator_integration_cpp designator_integration_msgs
 )
 
 include_directories(
