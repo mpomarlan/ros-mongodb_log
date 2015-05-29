@@ -28,6 +28,7 @@ include_directories(
 
 add_executable(mongodb_log_tf src/mongodb_log_tf.cpp)
 add_executable(mongodb_log_pcl src/mongodb_log_pcl.cpp)
+add_executable(mongodb_log_img src/mongodb_log_img.cpp)
 add_executable(mongodb_log_cimg src/mongodb_log_cimg.cpp)
 add_executable(mongodb_log_desig src/mongodb_log_desig.cpp)
 add_executable(benchmark_produce_tf src/benchmark/produce_tf.cpp)
@@ -43,6 +44,14 @@ target_link_libraries(mongodb_log_tf
 )
 
 target_link_libraries(mongodb_log_pcl
+  ${catkin_LIBRARIES}
+  ssl
+  crypto
+  mongoclient
+  ${Boost_LIBRARIES}
+)
+
+target_link_libraries(mongodb_log_img
   ${catkin_LIBRARIES}
   ssl
   crypto

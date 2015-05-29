@@ -50,7 +50,7 @@ from time import sleep
 from random import randint
 from tf.msg import tfMessage
 from tf2_msgs.msg import TFMessage
-from sensor_msgs.msg import PointCloud, CompressedImage
+from sensor_msgs.msg import PointCloud, CompressedImage, Image
 from roslib.packages import find_node
 from designator_integration_msgs.msg import DesignatorRequest
 from designator_integration_msgs.msg import DesignatorResponse
@@ -435,6 +435,11 @@ class MongoWriter(object):
             node_path = find_node(PACKAGE_NAME, "mongodb_log_pcl")
             if not node_path:
                 print("FAILED to detect mongodb_log_pcl, falling back to generic logger (did not build package?)")
+        elif not self.no_specific and msg_class == Image:
+            print("DETECTED compressed image topic %s, using fast C++ logger" % topic)
+            node_path = find_node(PACKAGE_NAME, "mongodb_log_img")
+            if not node_path:
+                print("FAILED to detect mongodb_log_img, falling back to generic logger (did not build package?)")
         elif not self.no_specific and msg_class == CompressedImage:
             print("DETECTED compressed image topic %s, using fast C++ logger" % topic)
             node_path = find_node(PACKAGE_NAME, "mongodb_log_cimg")
