@@ -33,11 +33,11 @@
 #include <designator_integration_msgs/DesignatorResponse.h>
 #include <designators/Designator.h>
 
-using namespace std;
+
 using namespace mongo;
 
 
-DBClientConnection *dbMongoDB;
+DBClientConnection* dbMongoDB;
 string strCollection;
 string strTopic;
 
@@ -59,15 +59,15 @@ enum OperationMode {
 };
 
 
-BSONObj keyValuePairToBSON(designator_integration::KeyValuePair *ckvpPair) {
+BSONObj keyValuePairToBSON(designator_integration::KeyValuePair* kvpPair) {
   BSONObjBuilder bobBuilder;
   
-  if(ckvpPair->type() == designator_integration::KeyValuePair::ValueType::STRING) {
-    bobBuilder.append(ckvpPair->key(), ckvpPair->stringValue());
-  } else if(ckvpPair->type() == designator_integration::KeyValuePair::ValueType::FLOAT) {
-    bobBuilder.append(ckvpPair->key(), ckvpPair->floatValue());
-  } else if(ckvpPair->type() == designator_integration::KeyValuePair::ValueType::POSE) {
-    geometry_msgs::Pose psPose = ckvpPair->poseValue();
+  if(kvpPair->type() == designator_integration::KeyValuePair::ValueType::STRING) {
+    bobBuilder.append(kvpPair->key(), kvpPair->stringValue());
+  } else if(kvpPair->type() == designator_integration::KeyValuePair::ValueType::FLOAT) {
+    bobBuilder.append(kvpPair->key(), kvpPair->floatValue());
+  } else if(kvpPair->type() == designator_integration::KeyValuePair::ValueType::POSE) {
+    geometry_msgs::Pose psPose = kvpPair->poseValue();
     BSONObjBuilder bobTransform;
     bobTransform.append("position",
 			BSON(   "x" << psPose.position.x
@@ -78,9 +78,9 @@ BSONObj keyValuePairToBSON(designator_integration::KeyValuePair *ckvpPair) {
 			     << "y" << psPose.orientation.y
 			     << "z" << psPose.orientation.z
 			     << "w" << psPose.orientation.w));
-    bobBuilder.append(ckvpPair->key(), bobTransform.obj());
-  } else if(ckvpPair->type() == designator_integration::KeyValuePair::ValueType::POSESTAMPED) {
-    geometry_msgs::PoseStamped psPoseStamped = ckvpPair->poseStampedValue();
+    bobBuilder.append(kvpPair->key(), bobTransform.obj());
+  } else if(kvpPair->type() == designator_integration::KeyValuePair::ValueType::POSESTAMPED) {
+    geometry_msgs::PoseStamped psPoseStamped = kvpPair->poseStampedValue();
     Date_t stamp = psPoseStamped.header.stamp.sec * 1000.0 + psPoseStamped.header.stamp.nsec / 1000000.0;
     
     BSONObjBuilder bobTransformStamped;
@@ -99,46 +99,49 @@ BSONObj keyValuePairToBSON(designator_integration::KeyValuePair *ckvpPair) {
     			     << "z" << psPoseStamped.pose.orientation.z
     			     << "w" << psPoseStamped.pose.orientation.w));
     bobTransformStamped.append("pose", bobTransform.obj());
-    bobBuilder.append(ckvpPair->key(), bobTransformStamped.obj());
-  } else if(ckvpPair->type() == designator_integration::KeyValuePair::ValueType::LIST) {
+    bobBuilder.append(kvpPair->key(), bobTransformStamped.obj());
+  } else if(kvpPair->type() == designator_integration::KeyValuePair::ValueType::LIST) {
     BSONObjBuilder bobChildren;
-    list<designator_integration::KeyValuePair*> lstChildren = ckvpPair->children();
+    std::list<designator_integration::KeyValuePair*> lstChildren = kvpPair->children();
     
     for(designator_integration::KeyValuePair* kvpChild : lstChildren) {
       bobChildren.appendElements(keyValuePairToBSON(kvpChild));
     }
     
-    bobBuilder.append(ckvpPair->key(), bobChildren.obj());
+    bobBuilder.append(kvpPair->key(), bobChildren.obj());
   }
   
   return bobBuilder.obj();
 }
 
-void logDesignator(designator_integration::Designator *desigLog) {
+
+void logDesignator(designator_integration::Designator* desigLog) {
   BSONObjBuilder bobDesig;
   std::vector<BSONObj> vecChildren;
   
-  list<designator_integration::KeyValuePair*> lstChildren = desigLog->children();
+  std::list<designator_integration::KeyValuePair*> lstChildren = desigLog->children();
   
   for(designator_integration::KeyValuePair* kvpChild : lstChildren) {
     bobDesig.appendElements(keyValuePairToBSON(kvpChild));
   }
   
-  string strDesigType = "unknown";
+  string strDesigType;
+  
   switch(desigLog->type()) {
   case designator_integration::Designator::DesignatorType::ACTION:
     strDesigType = "action";
     break;
-
+    
   case designator_integration::Designator::DesignatorType::OBJECT:
     strDesigType = "object";
     break;
-
+    
   case designator_integration::Designator::DesignatorType::LOCATION:
     strDesigType = "location";
     break;
     
   default:
+    strDesigType = "unknown";
     break;
   }
   
@@ -156,8 +159,9 @@ void logDesignator(designator_integration::Designator *desigLog) {
   pthread_mutex_unlock(&out_counter_mutex);
 }
 
-void cbDesignatorResponseMsg(const designator_integration_msgs::DesignatorResponse &msg) {
-  vector<designator_integration_msgs::Designator> vecDesigs = msg.designators;
+
+void cbDesignatorResponseMsg(const designator_integration_msgs::DesignatorResponse& msg) {
+  std::vector<designator_integration_msgs::Designator> vecDesigs = msg.designators;
   
   for(designator_integration_msgs::Designator desigmsgCurrent : vecDesigs) {
     designator_integration::Designator* desigLog = new designator_integration::Designator(desigmsgCurrent);
@@ -167,35 +171,38 @@ void cbDesignatorResponseMsg(const designator_integration_msgs::DesignatorRespon
   }
 }
 
-void cbDesignatorRequestMsg(const designator_integration_msgs::DesignatorRequest &msg) {
+
+void cbDesignatorRequestMsg(const designator_integration_msgs::DesignatorRequest& msg) {
   designator_integration::Designator* desigLog = new designator_integration::Designator(msg.designator);
   logDesignator(desigLog);
   
   delete desigLog;
 }
 
-void cbDesignatorMsg(const designator_integration_msgs::Designator &msg) {
+
+void cbDesignatorMsg(const designator_integration_msgs::Designator& msg) {
   designator_integration::Designator* desigLog = new designator_integration::Designator(msg);
   logDesignator(desigLog);
   
   delete desigLog;
 }
 
-void printCount(const ros::TimerEvent &te) {
-  unsigned int l_in_counter, l_out_counter, l_drop_counter, l_qsize;
 
+void printCount(const ros::TimerEvent& te) {
+  unsigned int l_in_counter, l_out_counter, l_drop_counter, l_qsize;
+  
   pthread_mutex_lock(&in_counter_mutex);
   l_in_counter = in_counter; in_counter = 0;
   pthread_mutex_unlock(&in_counter_mutex);
-
+  
   pthread_mutex_lock(&out_counter_mutex);
   l_out_counter = out_counter; out_counter = 0;
   pthread_mutex_unlock(&out_counter_mutex);
-
+  
   pthread_mutex_lock(&drop_counter_mutex);
   l_drop_counter = drop_counter; drop_counter = 0;
   pthread_mutex_unlock(&drop_counter_mutex);
-
+  
   pthread_mutex_lock(&qsize_mutex);
   l_qsize = qsize; qsize = 0;
   pthread_mutex_unlock(&qsize_mutex);
@@ -203,6 +210,7 @@ void printCount(const ros::TimerEvent &te) {
   printf("%u:%u:%u:%u\n", l_in_counter, l_out_counter, l_drop_counter, l_qsize);
   fflush(stdout);
 }
+
 
 void initialize() {
   strCollection = "";
@@ -213,6 +221,7 @@ void initialize() {
   drop_counter = 0;
   qsize = 0;
 }
+
 
 int main(int argc, char** argv) {
   int nReturnvalue = 0;
