@@ -8,6 +8,13 @@ find_package(Boost REQUIRED COMPONENTS thread filesystem)
 
 set(COMPILE_DEBUG 0)
 
+#if(mongodb-clients_FOUND)
+#  MESSAGE(STATUS "Found mongodb-clients, will use that as the underlying interface to mongodb.")
+#  add_definitions(-DUSE_MONGO_DEFAULT=1)
+#else()
+#  add_definitions(-DUSE_MONGO_DEFAULT=0)
+#endif()
+
 if(CMAKE_COMPILER_IS_GNUCXX)
   if(COMPILE_DEBUG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pg")
@@ -25,6 +32,13 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS})
+
+#add_custom_command(OUTPUT ./src/mongoversion.h 
+#    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/find-mongo-version.cmake)
+
+execute_process(COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/find-mongo-version.py ${CMAKE_CURRENT_SOURCE_DIR})
+#    OUTPUT_VARIABLE _output OUTPUT_STRIP_TRAILING_WHITESPACE)
+#file(WRITE ./src/mongoversion.h "#define USE_DEFAULT_MONGODB \"${_output}\"")
 
 add_executable(mongodb_log_tf src/mongodb_log_tf.cpp)
 add_executable(mongodb_log_pcl src/mongodb_log_pcl.cpp)

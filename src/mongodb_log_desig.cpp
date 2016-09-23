@@ -26,7 +26,7 @@
 #include <ros/ros.h>
 
 // MongoDB
-#include <mongo/client/dbclient.h>
+#include "mongo_interface.h"
 
 // Designator Integration
 #include <designator_integration_msgs/DesignatorRequest.h>
@@ -34,12 +34,9 @@
 #include <designators/Designator.h>
 
 
-using namespace mongo;
-
-
-DBClientConnection* dbMongoDB;
-string strCollection;
-string strTopic;
+DECLARE_MONGO_CONNECTION(dbMongoDB)
+std::string strCollection;
+std::string strTopic;
 
 unsigned int in_counter;
 unsigned int out_counter;
@@ -59,73 +56,73 @@ enum OperationMode {
 };
 
 
-BSONObj keyValuePairToBSON(designator_integration::KeyValuePair* kvpPair) {
-  BSONObjBuilder bobBuilder;
+DataObject keyValuePairToBSON(designator_integration::KeyValuePair* kvpPair) {
+  DataObjectBuilder bobBuilder;
   
   if(kvpPair->type() == designator_integration::KeyValuePair::ValueType::STRING) {
-    bobBuilder.append(kvpPair->key(), kvpPair->stringValue());
+    builderAppend(bobBuilder, kvpPair->key(), kvpPair->stringValue());
   } else if(kvpPair->type() == designator_integration::KeyValuePair::ValueType::FLOAT) {
-    bobBuilder.append(kvpPair->key(), kvpPair->floatValue());
+    builderAppend(bobBuilder, kvpPair->key(), kvpPair->floatValue());
   } else if(kvpPair->type() == designator_integration::KeyValuePair::ValueType::POSE) {
     geometry_msgs::Pose psPose = kvpPair->poseValue();
-    BSONObjBuilder bobTransform;
-    bobTransform.append("position",
-			BSON(   "x" << psPose.position.x
+    DataObjectBuilder bobTransform;
+    builderAppend(bobTransform, "position",
+            MAKE_BSON_DATA_OBJECT(   "x" << psPose.position.x
 			     << "y" << psPose.position.y
 			     << "z" << psPose.position.z));
-    bobTransform.append("orientation",
-			BSON(   "x" << psPose.orientation.x
+    builderAppend(bobTransform, "orientation",
+            MAKE_BSON_DATA_OBJECT(   "x" << psPose.orientation.x
 			     << "y" << psPose.orientation.y
 			     << "z" << psPose.orientation.z
 			     << "w" << psPose.orientation.w));
-    bobBuilder.append(kvpPair->key(), bobTransform.obj());
+    builderAppend(bobBuilder, kvpPair->key(), builderGetObject(bobTransform));
   } else if(kvpPair->type() == designator_integration::KeyValuePair::ValueType::POSESTAMPED) {
     geometry_msgs::PoseStamped psPoseStamped = kvpPair->poseStampedValue();
-    Date_t stamp = psPoseStamped.header.stamp.sec * 1000.0 + psPoseStamped.header.stamp.nsec / 1000000.0;
+    BSONDate stamp = MAKE_BSON_DATE(psPoseStamped.header.stamp.sec * 1000.0 + psPoseStamped.header.stamp.nsec / 1000000.0);
     
-    BSONObjBuilder bobTransformStamped;
-    BSONObjBuilder bobTransform;
-    bobTransformStamped.append("header",
-			       BSON(   "seq" << psPoseStamped.header.seq
+    DataObjectBuilder bobTransformStamped;
+    DataObjectBuilder bobTransform;
+    builderAppend(bobTransformStamped, "header",
+                   MAKE_BSON_DATA_OBJECT(   "seq" << psPoseStamped.header.seq
 				    << "stamp" << stamp
 				    << "frame_id" << psPoseStamped.header.frame_id));
-    bobTransform.append("position",
-    			BSON(   "x" << psPoseStamped.pose.position.x
+    builderAppend(bobTransform, "position",
+                MAKE_BSON_DATA_OBJECT(   "x" << psPoseStamped.pose.position.x
     			     << "y" << psPoseStamped.pose.position.y
     			     << "z" << psPoseStamped.pose.position.z));
-    bobTransform.append("orientation",
-    			BSON(   "x" << psPoseStamped.pose.orientation.x
+    builderAppend(bobTransform, "orientation",
+                MAKE_BSON_DATA_OBJECT(   "x" << psPoseStamped.pose.orientation.x
     			     << "y" << psPoseStamped.pose.orientation.y
     			     << "z" << psPoseStamped.pose.orientation.z
     			     << "w" << psPoseStamped.pose.orientation.w));
-    bobTransformStamped.append("pose", bobTransform.obj());
-    bobBuilder.append(kvpPair->key(), bobTransformStamped.obj());
+    builderAppend(bobTransformStamped, "pose", builderGetObject(bobTransform));
+    builderAppend(bobBuilder, kvpPair->key(), builderGetObject(bobTransformStamped));
   } else if(kvpPair->type() == designator_integration::KeyValuePair::ValueType::LIST) {
-    BSONObjBuilder bobChildren;
+    DataObjectBuilder bobChildren;
     std::list<designator_integration::KeyValuePair*> lstChildren = kvpPair->children();
     
     for(designator_integration::KeyValuePair* kvpChild : lstChildren) {
-      bobChildren.appendElements(keyValuePairToBSON(kvpChild));
+      builderAppendElements(bobChildren, keyValuePairToBSON(kvpChild));
     }
     
-    bobBuilder.append(kvpPair->key(), bobChildren.obj());
+    builderAppend(bobBuilder, kvpPair->key(), builderGetObject(bobChildren));
   }
   
-  return bobBuilder.obj();
+  return builderGetObject(bobBuilder);
 }
 
 
 void logDesignator(designator_integration::Designator* desigLog) {
-  BSONObjBuilder bobDesig;
-  std::vector<BSONObj> vecChildren;
+  DataObjectBuilder bobDesig;
+  std::vector<DataObject> vecChildren;
   
   std::list<designator_integration::KeyValuePair*> lstChildren = desigLog->children();
   
   for(designator_integration::KeyValuePair* kvpChild : lstChildren) {
-    bobDesig.appendElements(keyValuePairToBSON(kvpChild));
+    builderAppendElements(bobDesig, keyValuePairToBSON(kvpChild));
   }
   
-  string strDesigType;
+  std::string strDesigType;
   
   switch(desigLog->type()) {
   case designator_integration::Designator::DesignatorType::ACTION:
@@ -145,11 +142,11 @@ void logDesignator(designator_integration::Designator* desigLog) {
     break;
   }
   
-  bobDesig.append("_designator_type", strDesigType);
+  builderAppend(bobDesig, "_designator_type", strDesigType);
   
-  dbMongoDB->insert(strCollection, BSON("designator" << bobDesig.obj() <<
-					"__recorded" << Date_t(time(NULL) * 1000) <<
-					"__topic" << strTopic));
+  insertOne(dbMongoDB, strCollection, MAKE_BSON_DATA_OBJECT("designator" << builderGetObject(bobDesig) <<
+                                            "__recorded" << MAKE_BSON_DATE(time(NULL) * 1000) <<
+                                            "__topic" << strTopic));
   
   pthread_mutex_lock(&in_counter_mutex);
   ++in_counter;
@@ -227,8 +224,8 @@ int main(int argc, char** argv) {
   int nReturnvalue = 0;
   initialize();
   
-  string strMongoDBHostname = "localhost";
-  string strNodename = "";
+  std::string strMongoDBHostname = "localhost";
+  std::string strNodename = "";
   
   enum OperationMode enOpMode = DESIGNATOR;
   
@@ -248,7 +245,7 @@ int main(int argc, char** argv) {
     } else if(cToken == 'c') {
       strCollection = optarg;
     } else if(cToken == 'd') {
-      string strArgument = optarg;
+      std::string strArgument = optarg;
       
       if(strArgument == "designator") {
 	enOpMode = DESIGNATOR;
@@ -277,10 +274,9 @@ int main(int argc, char** argv) {
       if(ros::ok()) {
 	ros::NodeHandle nh;
 	
-	string strError;
-	dbMongoDB = new DBClientConnection(true);
-	
-	if(dbMongoDB->connect(strMongoDBHostname, strError)) {
+    std::string strError;
+
+    if(ConnectToDatabase(dbMongoDB, strMongoDBHostname, strError)) {
 	  ros::Subscriber subTopic;
 	  
 	  switch(enOpMode) {

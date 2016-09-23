@@ -23,15 +23,13 @@
  */
 
 #include <ros/ros.h>
-#include <mongo/client/dbclient.h>
+#include "mongo_interface.h"
 
 #include <sensor_msgs/PointCloud.h>
 #include <unistd.h>
 #include <cstring>
 
-using namespace mongo;
-
-DBClientConnection *mongodb_conn;
+DECLARE_MONGO_CONNECTION(mongodb_conn)
 std::string collection;
 
 unsigned int in_counter;
@@ -46,46 +44,44 @@ static pthread_mutex_t qsize_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void msg_callback(const sensor_msgs::PointCloud::ConstPtr& msg)
 {
-  BSONObjBuilder document;
-  BSONObjBuilder transform;
+  DataObjectBuilder document;
+  DataObjectBuilder transform;
 
   
   const sensor_msgs::PointCloud& msg_in = *msg;
 
-  Date_t stamp = msg_in.header.stamp.sec * 1000 + msg_in.header.stamp.nsec / 1000000;
-  document.append("header", BSON("seq" << msg_in.header.seq
+  BSONDate stamp = MAKE_BSON_DATE(msg_in.header.stamp.sec * 1000 + msg_in.header.stamp.nsec / 1000000);
+  builderAppend(document, "header", MAKE_BSON_DATA_OBJECT("seq" << msg_in.header.seq
 				       << "stamp" << stamp
 				       << "frame_id" << msg_in.header.frame_id));
 
-  BSONArrayBuilder pointb(document.subarrayStart("points"));
+  START_BUILDER_ARRAY(pointb, document, "points");
   // I can't believe it's encoded that inefficient. Someone should be sent to jail for that.
   std::vector<geometry_msgs::Point32>::const_iterator p;
   for (p = msg_in.points.begin(); p != msg_in.points.end(); ++p) {
-    pointb.append(BSON(   "x" << p->x
-		       << "y" << p->y
-		       << "z" << p->z));
+    builderArrayAppend(pointb, MAKE_BSON_DATA_OBJECT("x" << p->x << "y" << p->y << "z" << p->z));
   }
-  pointb.doneFast();
+  FINISH_BUILDER_ARRAY(pointb, document, "points");
 
-  BSONArrayBuilder channelsb(document.subarrayStart("channels"));
-  BSONObjBuilder cb;
+  START_BUILDER_ARRAY(channelsb, document, "channels");
+  DataObjectBuilder cb;
 
   std::vector<sensor_msgs::ChannelFloat32>::const_iterator c;
   for (c = msg_in.channels.begin(); c != msg_in.channels.end(); ++c) {
-    cb.append("name", c->name);
+    builderAppend(cb, "name", c->name);
 
-    BSONArrayBuilder valuesb(cb.subarrayStart("values"));
+    START_BUILDER_ARRAY(valuesb, cb, "values");
     std::vector<float>::const_iterator v;
     for (v = c->values.begin(); v != c->values.end(); ++v) {
-      valuesb.append(*v);
+      builderArrayAppend(valuesb, *v);
     }
-    valuesb.doneFast();
+    FINISH_BUILDER_ARRAY(valuesb, cb, "values");
 
-    channelsb.append(cb.obj());
+    builderArrayAppend(channelsb, builderGetObject(cb));
   }
-  channelsb.doneFast();
+  FINISH_BUILDER_ARRAY(channelsb, document, "channels");
 
-  mongodb_conn->insert(collection, document.obj());
+  insertOne(mongodb_conn, collection, builderGetObject(document));
 
   // If we'd get access to the message queue this could be more useful
   // https://code.ros.org/trac/ros/ticket/744
@@ -158,8 +154,7 @@ main(int argc, char **argv)
   ros::NodeHandle n;
 
   std::string errmsg;
-  mongodb_conn = new DBClientConnection(/* auto reconnect*/ true);
-  if (! mongodb_conn->connect(mongodb, errmsg)) {
+  if (! ConnectToDatabase(mongodb_conn, mongodb, errmsg)) {
     ROS_ERROR("Failed to connect to MongoDB: %s", errmsg.c_str());
     return -1;
   }

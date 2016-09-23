@@ -32,10 +32,7 @@
 #include <tf/LinearMath/Quaternion.h>
 
 // MongoDB
-#include <mongo/client/dbclient.h>
-
-using namespace mongo;
-
+#include "mongo_interface.h"
 
 typedef struct {
   geometry_msgs::TransformStamped tsTransform;
@@ -44,10 +41,11 @@ typedef struct {
 float fVectorialDistanceThreshold;
 float fAngularDistanceThreshold;
 float fTimeDistanceThreshold;
-list<PoseStampedMemoryEntry> lstPoseStampedMemory;
+std::list<PoseStampedMemoryEntry> lstPoseStampedMemory;
 bool bAlwaysLog;
 
-DBClientConnection *mongodb_conn;
+DECLARE_MONGO_CONNECTION(mongodb_conn)
+
 std::string collection;
 std::string topic;
 
@@ -68,15 +66,15 @@ bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iter
     return true;
   }
   
-  string strMsgFrame = t->header.frame_id;
-  string strMsgChild = t->child_frame_id;
+  std::string strMsgFrame = t->header.frame_id;
+  std::string strMsgChild = t->child_frame_id;
   bool bFound = false;
   
-  for(list<PoseStampedMemoryEntry>::iterator itEntry = lstPoseStampedMemory.begin();
+  for(std::list<PoseStampedMemoryEntry>::iterator itEntry = lstPoseStampedMemory.begin();
       itEntry != lstPoseStampedMemory.end();
       itEntry++) {
-    string strEntryFrame = (*itEntry).tsTransform.header.frame_id;
-    string strEntryChild = (*itEntry).tsTransform.child_frame_id;
+    std::string strEntryFrame = (*itEntry).tsTransform.header.frame_id;
+    std::string strEntryChild = (*itEntry).tsTransform.child_frame_id;
     
     // Is this the same transform as in tfMsg?
     if((strEntryFrame == strMsgFrame && strEntryChild == strMsgChild) ||
@@ -128,7 +126,7 @@ bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iter
 }
 
 void msg_callback(const tf::tfMessage::ConstPtr& msg) {
-  std::vector<BSONObj> transforms;
+  std::vector<DataObject> transforms;
   
   const tf::tfMessage& msg_in = *msg;
   bool bDidLogTransforms = false;
@@ -138,30 +136,33 @@ void msg_callback(const tf::tfMessage::ConstPtr& msg) {
     if(shouldLogTransform(t)) {
       bDidLogTransforms = true;
       
-      Date_t stamp = t->header.stamp.sec * 1000.0 + t->header.stamp.nsec / 1000000.0;
+      BSONDate stamp = MAKE_BSON_DATE(t->header.stamp.sec * 1000.0 + t->header.stamp.nsec / 1000000.0);
       
-      BSONObjBuilder transform_stamped;
-      BSONObjBuilder transform;
-      transform_stamped.append("header", BSON(   "seq" << t->header.seq
+      DataObjectBuilder transform_stamped;
+      DataObjectBuilder transform;
+      builderAppend(transform_stamped, "header", MAKE_BSON_DATA_OBJECT("seq" << t->header.seq
 					      << "stamp" << stamp
 					      << "frame_id" << t->header.frame_id));
-      transform_stamped.append("child_frame_id", t->child_frame_id);
-      transform.append("translation", BSON(   "x" << t->transform.translation.x
+      builderAppend(transform_stamped, "child_frame_id", t->child_frame_id);
+      builderAppend(transform, "translation", MAKE_BSON_DATA_OBJECT("x" << t->transform.translation.x
 					   << "y" << t->transform.translation.y
 					   << "z" << t->transform.translation.z));
-      transform.append("rotation", BSON(   "x" << t->transform.rotation.x
+      builderAppend(transform, "rotation", MAKE_BSON_DATA_OBJECT("x" << t->transform.rotation.x
 					<< "y" << t->transform.rotation.y
 					<< "z" << t->transform.rotation.z
-					<< "w" << t->transform.rotation.w));
-      transform_stamped.append("transform", transform.obj());
-      transforms.push_back(transform_stamped.obj());
+                    << "w" << t->transform.rotation.w));
+      builderAppend(transform_stamped, "transform", builderGetObject(transform));
+      transforms.push_back(builderGetObject(transform_stamped));
     }
   }
   
   if(bDidLogTransforms) {
-    mongodb_conn->insert(collection, BSON("transforms" << transforms <<
-					  "__recorded" << Date_t(time(NULL) * 1000) <<
-					  "__topic" << topic));
+
+    DataObject bsonObj = MAKE_BSON_DATA_OBJECT("transforms" << transforms <<
+                                  "__recorded" << MAKE_BSON_DATE(time(NULL) * 1000) <<
+                                  "__topic" << topic);
+
+    insertOne(mongodb_conn, collection, bsonObj);
     
     // If we'd get access to the message queue this could be more useful
     // https://code.ros.org/trac/ros/ticket/744
@@ -248,8 +249,7 @@ int main(int argc, char **argv) {
   ros::NodeHandle n;
   
   std::string errmsg;
-  mongodb_conn = new DBClientConnection(/* auto reconnect*/ true);
-  if (! mongodb_conn->connect(mongodb, errmsg)) {
+  if (! ConnectToDatabase(mongodb_conn, mongodb, errmsg)) {
     ROS_ERROR("Failed to connect to MongoDB: %s", errmsg.c_str());
     return -1;
   }

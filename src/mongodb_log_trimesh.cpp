@@ -27,9 +27,9 @@
 
 #include <rviz_intel/TriangleMesh.h>
 
-using namespace mongo;
+//using namespace mongo;
 
-DBClientConnection *mongodb_conn;
+mongo::DBClientConnection *mongodb_conn;
 std::string collection;
 
 unsigned int in_counter;
@@ -44,14 +44,14 @@ static pthread_mutex_t qsize_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void msg_callback(const rviz_intel::TriangleMesh::ConstPtr& msg)
 {
-  BSONObjBuilder document;
+  mongo::BSONObjBuilder document;
 
-  Date_t stamp = msg->header.stamp.sec * 1000 + msg->header.stamp.nsec / 1000000;
+  mongo::Date_t stamp = msg->header.stamp.sec * 1000 + msg->header.stamp.nsec / 1000000;
   document.append("header", BSON(   "seq" << msg->header.seq
 				 << "stamp" << stamp
 				 << "frame_id" << msg->header.frame_id));
 
-  BSONArrayBuilder pointsb(document.subarrayStart("points"));
+  mongo::BSONArrayBuilder pointsb(document.subarrayStart("points"));
   std::vector<geometry_msgs::Point32>::const_iterator p;
   for (p = msg->points.begin(); p != msg->points.end(); ++p) {
     pointsb.append(BSON(   "x" << p->x
@@ -60,7 +60,7 @@ void msg_callback(const rviz_intel::TriangleMesh::ConstPtr& msg)
   }
   pointsb.doneFast();
 
-  BSONArrayBuilder normalsb(document.subarrayStart("normals"));
+  mongo::BSONArrayBuilder normalsb(document.subarrayStart("normals"));
   for (p = msg->normals.begin(); p != msg->normals.end(); ++p) {
     normalsb.append(BSON(   "x" << p->x
 		         << "y" << p->y
@@ -68,20 +68,20 @@ void msg_callback(const rviz_intel::TriangleMesh::ConstPtr& msg)
   }
   normalsb.doneFast();
 
-  BSONArrayBuilder colorsb(document.subarrayStart("colors"));
+  mongo::BSONArrayBuilder colorsb(document.subarrayStart("colors"));
   std::vector<uint32_t>::const_iterator u;
   for (u = msg->colors.begin(); u != msg->colors.end(); ++u) {
     colorsb.append(*u);
   }
   colorsb.doneFast();
 
-  BSONArrayBuilder color_indsb(document.subarrayStart("color_inds"));
+  mongo::BSONArrayBuilder color_indsb(document.subarrayStart("color_inds"));
   for (u = msg->color_inds.begin(); u != msg->color_inds.end(); ++u) {
     color_indsb.append(*u);
   }
   color_indsb.doneFast();
 
-  BSONArrayBuilder trianglesb(document.subarrayStart("triangles"));
+  mongo::BSONArrayBuilder trianglesb(document.subarrayStart("triangles"));
   std::vector<rviz_intel::Triangle>::const_iterator t;
   for (t = msg->triangles.begin(); t != msg->triangles.end(); ++t) {
     trianglesb.append(BSON(   "i" << t->i
@@ -164,7 +164,7 @@ main(int argc, char **argv)
   ros::NodeHandle n;
 
   std::string errmsg;
-  mongodb_conn = new DBClientConnection(/* auto reconnect*/ true);
+  mongodb_conn = new mongo::DBClientConnection(/* auto reconnect*/ true);
   if (! mongodb_conn->connect(mongodb, errmsg)) {
     ROS_ERROR("Failed to connect to MongoDB: %s", errmsg.c_str());
     return -1;
