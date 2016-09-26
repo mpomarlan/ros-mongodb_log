@@ -29,16 +29,36 @@ catkin_package(
   CATKIN_DEPENDS roscpp roslib designator_integration_cpp designator_integration_msgs
 )
 
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-  ${Boost_INCLUDE_DIRS})
-
 #add_custom_command(OUTPUT ./src/mongoversion.h 
 #    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/find-mongo-version.cmake)
 
-execute_process(COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/find-mongo-version.py ${CMAKE_CURRENT_SOURCE_DIR})
-#    OUTPUT_VARIABLE _output OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/find-mongo-version.py ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE FOO)
 #file(WRITE ./src/mongoversion.h "#define USE_DEFAULT_MONGODB \"${_output}\"")
+
+message(STATUS "Default MongoDB interface present: ${FOO}\n")
+
+if(${FOO} MATCHES "True")
+  message(STATUS "Using default MongoDB interface.\n")
+  set(mongo_LIBRARIES mongoclient)
+  set(bson_INCLUDE_DIRS )
+  set(mongo_INCLUDE_DIRS )
+else()
+  message(STATUS "Using MongoCXX interface.\n")
+  set(mongo_LIBRARIES mongocxx)
+  find_package(bsoncxx)
+  find_package(mongocxx)
+  #set(bson_INCLUDE_DIRS /usr/local/include/bsoncxx/v_noabi)
+  #set(mongo_INCLUDE_DIRS /usr/local/include/mongocxx/v_noabi)
+  set(bson_INCLUDE_DIRS ${bsoncxx_INCLUDE_DIRS})
+  set(mongo_INCLUDE_DIRS ${mongocxx_INCLUDE_DIRS})
+endif()
+
+include_directories(
+  ${catkin_INCLUDE_DIRS}
+  ${bson_INCLUDE_DIRS}
+  ${mongo_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS})
 
 add_executable(mongodb_log_tf src/mongodb_log_tf.cpp)
 add_executable(mongodb_log_pcl src/mongodb_log_pcl.cpp)
@@ -53,7 +73,7 @@ target_link_libraries(mongodb_log_tf
   ${catkin_LIBRARIES}
   ssl
   crypto
-  mongoclient
+  ${mongo_LIBRARIES}
   ${Boost_LIBRARIES}
 )
 
@@ -61,7 +81,7 @@ target_link_libraries(mongodb_log_pcl
   ${catkin_LIBRARIES}
   ssl
   crypto
-  mongoclient
+  ${mongo_LIBRARIES}
   ${Boost_LIBRARIES}
 )
 
@@ -69,7 +89,7 @@ target_link_libraries(mongodb_log_img
   ${catkin_LIBRARIES}
   ssl
   crypto
-  mongoclient
+  ${mongo_LIBRARIES}
   ${Boost_LIBRARIES}
 )
 
@@ -77,7 +97,7 @@ target_link_libraries(mongodb_log_cimg
   ${catkin_LIBRARIES}
   ssl
   crypto
-  mongoclient
+  ${mongo_LIBRARIES}
   ${Boost_LIBRARIES}
 )
 
@@ -85,7 +105,7 @@ target_link_libraries(mongodb_log_desig
   ${catkin_LIBRARIES}
   ssl
   crypto
-  mongoclient
+  ${mongo_LIBRARIES}
   ${Boost_LIBRARIES}
 )
 
@@ -93,6 +113,6 @@ target_link_libraries(benchmark_produce_tf
   ${catkin_LIBRARIES}
   ssl
   crypto
-  mongoclient
+  ${mongo_LIBRARIES}
   ${Boost_LIBRARIES}
 )
