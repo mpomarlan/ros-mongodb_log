@@ -39,10 +39,10 @@ DataObject builderGetObject(DataObjectBuilder &builder)
     builder.obj();
 }
 
-bool ConnectToDatabase(MongoConnectionT &clientConnection, std::string const&mongodb, std::string &errmsg)
+bool ConnectToDatabase(MongoConnectionT &clientConnection, std::string const&mongodb_host, std::string const& dbcollname, std::string &errmsg)
 {
     clientConnection = new mongo::DBClientConnection(/* auto reconnect*/ true);
-    return(clientConnection->connect(mongodb, errmsg));
+    return(clientConnection->connect(mongodb_host, errmsg));
 }
 
 void insertOne(MongoConnectionT &clientConnection, std::string const& collection, DataObject const& dataObj)
@@ -104,8 +104,10 @@ DataObject builderGetObject(DataObjectBuilder &builder)
     builder.view();
 }
 
-bool connectToDatabase(MongoConnectionT &clientConnection, std::string const&mongodb, std::string &errmsg)
+bool connectToDatabase(MongoConnectionT &clientConnection, std::string const&mongodb_host, std::string const& dbcollname, std::string &errmsg)
 {
+    std::string db_name = dbcollname.substr(0, dbcollname.find('.'));
+
     clientConnection = new MongoConnection();
 
     clientConnection->clientConn = mongocxx::client(mongocxx::uri(mongocxx::uri::k_default_uri));
@@ -115,14 +117,18 @@ bool connectToDatabase(MongoConnectionT &clientConnection, std::string const&mon
         return false;
     }
 
-    clientConnection->databaseConn = clientConnection->clientConn[mongodb];
+    clientConnection->databaseConn = clientConnection->clientConn[db_name];
 
     return (true);
 }
 
-void insertOne(MongoConnectionT &clientConnection, std::string const& collection, DataObject const& dataObj)
+void insertOne(MongoConnectionT &clientConnection, std::string const& dbcollname, DataObject const& dataObj)
 {
-    clientConnection->databaseConn[collection].insert_one(dataObj);
+    std::string collection_name = dbcollname;
+    size_t separator = dbcollname.find('.');
+    if(string::npos != separator)
+        collection_name = dbcollname.substr(separator + 1);
+    clientConnection->databaseConn[collection_name].insert_one(dataObj);
 }
 
 typedef mongocxx::b_date BSONDate;

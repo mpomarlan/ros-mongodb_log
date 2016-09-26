@@ -276,7 +276,7 @@ int main(int argc, char** argv) {
 	
     std::string strError;
 
-    if(ConnectToDatabase(dbMongoDB, strMongoDBHostname, strError)) {
+    if(ConnectToDatabase(dbMongoDB, strMongoDBHostname, strCollection, strError)) {
 	  ros::Subscriber subTopic;
 	  
 	  switch(enOpMode) {

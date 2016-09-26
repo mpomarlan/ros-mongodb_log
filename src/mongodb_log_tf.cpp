@@ -249,7 +249,7 @@ int main(int argc, char **argv) {
   ros::NodeHandle n;
   
   std::string errmsg;
-  if (! ConnectToDatabase(mongodb_conn, mongodb, errmsg)) {
+  if (! ConnectToDatabase(mongodb_conn, mongodb, collection, errmsg)) {
     ROS_ERROR("Failed to connect to MongoDB: %s", errmsg.c_str());
     return -1;
   }

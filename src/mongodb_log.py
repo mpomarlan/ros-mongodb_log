@@ -71,7 +71,8 @@ import roslib.message
 import rostopic
 import rrdtool
 
-from pymongo import Connection, SLOW_ONLY
+#from pymongo import Connection, SLOW_ONLY
+import pymongo
 from pymongo.errors import InvalidDocument, InvalidStringData
 
 import rrdtool
@@ -139,9 +140,12 @@ class WorkerProcess(object):
 	if use_setproctitle:
             setproctitle("mongodb_log %s" % self.topic)
 
-        self.mongoconn = Connection(self.mongodb_host, self.mongodb_port)
+        if (hasattr(pymongo, 'Connection')):
+            self.mongoconn = pymongo.Connection(self.mongodb_host, self.mongodb_port)
+        else:
+            self.mongoconn = pymongo.MongoClient(self.mongodb_host, self.mongodb_port)
         self.mongodb = self.mongoconn[self.mongodb_name]
-        self.mongodb.set_profiling_level = SLOW_ONLY
+        self.mongodb.set_profiling_level = pymongo.SLOW_ONLY
 
         self.collection = self.mongodb[self.collname]
         self.collection.count()

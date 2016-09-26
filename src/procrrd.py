@@ -32,7 +32,7 @@ from datetime import datetime, timedelta
 from time import sleep
 import multiprocessing
 
-from pymongo import Connection
+#from pymongo import Connection
 import rrdtool
 
 LOOPTIME  = 10

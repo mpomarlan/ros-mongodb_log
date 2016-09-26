@@ -32,7 +32,8 @@ from optparse import OptionParser
 from datetime import datetime, timedelta
 from time import sleep
 
-from pymongo import Connection
+#from pymongo import Connection
+import pymongo
 import rrdtool
 
 LOOPTIME  = 10
@@ -47,7 +48,10 @@ class MongoRRD(object):
     def __init__(self, graph_clear = False, mongodb_host=None, mongodb_port=None, mongodb_name="roslog"):
         self.quit        = False
         self.graph_clear = graph_clear
-        self._conn       = Connection(mongodb_host, mongodb_port)
+        if (hasattr(pymongo, 'Connection'):
+            self._conn       = pymongo.Connection(mongodb_host, mongodb_port)
+        else:
+            self._conn       = pymongo.MongoClient(mongodb_host, mongodb_port)
         self._admindb    = self._conn["admin"]
         self._datadb     = self._conn[mongodb_name]
 
