@@ -126,8 +126,6 @@ bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iter
 }
 
 void msg_callback(const tf::tfMessage::ConstPtr& msg) {
-    ROS_INFO("Got a tf message.");
-  //std::vector<DataObject> transforms; transforms.clear();
   
   const tf::tfMessage& msg_in = *msg;
   bool bDidLogTransforms = false;
@@ -253,8 +251,6 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, nodename);
   ros::NodeHandle n;
 
-  ROS_INFO("Connecting to MongoDB(%s) for topic %s\n", collection.c_str(), topic.c_str());
-  
   std::string errmsg;
   if (! ConnectToDatabase(mongodb_conn, mongodb, collection, errmsg)) {
     ROS_ERROR("Failed to connect to MongoDB: %s", errmsg.c_str());
