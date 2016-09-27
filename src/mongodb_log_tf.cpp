@@ -126,10 +126,14 @@ bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iter
 }
 
 void msg_callback(const tf::tfMessage::ConstPtr& msg) {
-  std::vector<DataObject> transforms;
+    ROS_INFO("Got a tf message.");
+  //std::vector<DataObject> transforms; transforms.clear();
   
   const tf::tfMessage& msg_in = *msg;
   bool bDidLogTransforms = false;
+
+  DataObjectBuilder tfRecord;
+  START_BUILDER_ARRAY(transforms, tfRecord, "transforms");
   
   std::vector<geometry_msgs::TransformStamped>::const_iterator t;
   for (t = msg_in.transforms.begin(); t != msg_in.transforms.end(); ++t) {
@@ -137,7 +141,7 @@ void msg_callback(const tf::tfMessage::ConstPtr& msg) {
       bDidLogTransforms = true;
       
       BSONDate stamp = MAKE_BSON_DATE(t->header.stamp.sec * 1000.0 + t->header.stamp.nsec / 1000000.0);
-      
+
       DataObjectBuilder transform_stamped;
       DataObjectBuilder transform;
       builderAppend(transform_stamped, "header", MAKE_BSON_DATA_OBJECT("seq" << ((MongoInt)t->header.seq)
@@ -152,19 +156,19 @@ void msg_callback(const tf::tfMessage::ConstPtr& msg) {
                     << "z" << t->transform.rotation.z
                     << "w" << t->transform.rotation.w));
       builderAppend(transform_stamped, "transform", builderGetObject(transform));
-      transforms.push_back(builderGetObject(transform_stamped));
+      //transforms.push_back(builderGetObject(transform_stamped));
+      builderArrayAppend(transforms, builderGetObject(transform_stamped));
     }
   }
+  FINISH_BUILDER_ARRAY(transforms, tfRecord, "transforms");
   
   if(bDidLogTransforms) {
 
-    DataObjectBuilder tRecord;
-    builderAppendDocumentVector(tRecord, "transforms", transforms);
-    builderAppend(tRecord, "__recorded", MAKE_BSON_DATE(time(NULL) * 1000));
-    builderAppend(tRecord, "__topic", topic);
+    builderAppend(tfRecord, "__recorded", MAKE_BSON_DATE(time(NULL) * 1000));
+    builderAppend(tfRecord, "__topic", topic);
 
-    insertOne(mongodb_conn, collection, builderGetObject(tRecord));
-    
+    insertOne(mongodb_conn, collection, builderGetObject(tfRecord));
+
     // If we'd get access to the message queue this could be more useful
     // https://code.ros.org/trac/ros/ticket/744
     pthread_mutex_lock(&in_counter_mutex);
@@ -248,6 +252,8 @@ int main(int argc, char **argv) {
   
   ros::init(argc, argv, nodename);
   ros::NodeHandle n;
+
+  ROS_INFO("Connecting to MongoDB(%s) for topic %s\n", collection.c_str(), topic.c_str());
   
   std::string errmsg;
   if (! ConnectToDatabase(mongodb_conn, mongodb, collection, errmsg)) {

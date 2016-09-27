@@ -21,10 +21,6 @@ template<typename T> void builderAppend(DataObjectBuilder &builder, std::string 
 {
     builder.append(key, val);
 }
-void builderAppendDocumentVector(DataObjectBuilder &builder, std::string const& key, std::vector<DataObject> const& val)
-{
-    builder << key << val;
-}
 void builderAppendBinaryData(DataObjectBuilder &builder, std::string const& key, int len, const void* data)
 {
     builder.appendBinData(key, len, mongo::BinDataGeneral, data);
@@ -41,7 +37,7 @@ template<typename T> void builderArrayAppend(ArrayObjectBuilder & builder, T con
 }
 DataObject builderGetObject(DataObjectBuilder &builder)
 {
-    builder.obj();
+    return builder.obj();
 }
 
 bool ConnectToDatabase(MongoConnectionT &clientConnection, std::string const&mongodb_host, std::string const& dbcollname, std::string &errmsg)
@@ -103,17 +99,6 @@ template<> void builderAppend(DataObjectBuilder &builder, std::string const& key
     builder << key << bsoncxx::types::b_document{val};
 }
 
-void builderAppendDocumentVector(DataObjectBuilder &builder, std::string const& key, std::vector<DataObject> const& val)
-{
-    int maxK = val.size();
-    ArrayObjectBuilder arr;
-    for(int k = 0 ; k < maxK; k++)
-    {
-        arr << bsoncxx::types::b_document{val[k]};
-    }
-    builder << key << bsoncxx::types::b_array{arr};
-}
-
 void builderAppendBinaryData(DataObjectBuilder &builder, std::string const& key, int len, const void* data)
 {
     bsoncxx::types::b_binary binDataObj;
@@ -147,7 +132,7 @@ template<> void builderArrayAppend(ArrayObjectBuilder &builder, bsoncxx::documen
 DataObject builderGetObject(DataObjectBuilder &builder)
 {
     //builder << bsoncxx::builder::stream::finalize;
-    builder.view();
+    return builder.view();
 }
 
 bool ConnectToDatabase(MongoConnectionT &clientConnection, std::string const&mongodb_host, std::string const& dbcollname, std::string &errmsg)
@@ -170,11 +155,12 @@ bool ConnectToDatabase(MongoConnectionT &clientConnection, std::string const&mon
 
 void insertOne(MongoConnectionT &clientConnection, std::string const& dbcollname, DataObject const& dataObj)
 {
-    //std::string collection_name = dbcollname;
-    //size_t separator = dbcollname.find('.');
-    //if(string::npos != separator)
-    //    collection_name = dbcollname.substr(separator + 1);
-    //clientConnection->databaseConn[collection_name].insert_one(dataObj);
+    std::string collection_name = dbcollname;
+
+    size_t separator = dbcollname.find('.');
+    if(std::string::npos != separator)
+        collection_name = dbcollname.substr(separator + 1);
+    clientConnection->databaseConn[collection_name].insert_one(dataObj);
 }
 
 typedef bsoncxx::types::b_date BSONDate;
