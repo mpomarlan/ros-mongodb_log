@@ -140,7 +140,7 @@ void msg_callback(const tf::tfMessage::ConstPtr& msg) {
       
       DataObjectBuilder transform_stamped;
       DataObjectBuilder transform;
-      builderAppend(transform_stamped, "header", MAKE_BSON_DATA_OBJECT("seq" << ((long int)t->header.seq)
+      builderAppend(transform_stamped, "header", MAKE_BSON_DATA_OBJECT("seq" << ((MongoInt)t->header.seq)
                        << "stamp" << stamp
                        << "frame_id" << t->header.frame_id));
       builderAppend(transform_stamped, "child_frame_id", t->child_frame_id);

@@ -51,7 +51,7 @@ void msg_callback(const sensor_msgs::PointCloud::ConstPtr& msg)
   const sensor_msgs::PointCloud& msg_in = *msg;
 
   BSONDate stamp = MAKE_BSON_DATE(msg_in.header.stamp.sec * 1000 + msg_in.header.stamp.nsec / 1000000);
-  builderAppend(document, "header", MAKE_BSON_DATA_OBJECT("seq" << (long int)(msg_in.header.seq)
+  builderAppend(document, "header", MAKE_BSON_DATA_OBJECT("seq" << (MongoInt)(msg_in.header.seq)
 				       << "stamp" << stamp
 				       << "frame_id" << msg_in.header.frame_id));
 

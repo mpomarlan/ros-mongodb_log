@@ -8,6 +8,7 @@
 
 #include <mongo/client/dbclient.h>
 
+typedef unsigned int MongoInt;
 typedef mongo::DBClientConnection* MongoConnectionT;
 #define DECLARE_MONGO_CONNECTION(Var) MongoConnectionT Var;
 
@@ -71,6 +72,7 @@ typedef mongo::Date_t BSONDate;
 #include <mongocxx/options/client.hpp>
 #include <mongocxx/uri.hpp>
 
+typedef signed long int MongoInt;
 typedef struct
 {
     mongocxx::client clientConn;

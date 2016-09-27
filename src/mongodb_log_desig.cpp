@@ -83,7 +83,7 @@ DataObject keyValuePairToBSON(designator_integration::KeyValuePair* kvpPair) {
     DataObjectBuilder bobTransformStamped;
     DataObjectBuilder bobTransform;
     builderAppend(bobTransformStamped, "header",
-                   MAKE_BSON_DATA_OBJECT(   "seq" << ((long int)psPoseStamped.header.seq)
+                   MAKE_BSON_DATA_OBJECT(   "seq" << ((MongoInt)psPoseStamped.header.seq)
 				    << "stamp" << stamp
 				    << "frame_id" << psPoseStamped.header.frame_id));
     builderAppend(bobTransform, "position",
