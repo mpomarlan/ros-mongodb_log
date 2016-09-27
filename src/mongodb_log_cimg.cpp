@@ -45,7 +45,7 @@ void msg_callback(const sensor_msgs::CompressedImage::ConstPtr& msg)
   DataObjectBuilder document;
 
   BSONDate stamp = MAKE_BSON_DATE(msg->header.stamp.sec * 1000.0 + msg->header.stamp.nsec / 1000000.0);
-  builderAppend(document, "header", BSON(   "seq" << msg->header.seq
+  builderAppend(document, "header", MAKE_BSON_DATA_OBJECT(   "seq" << ((long int)msg->header.seq)
 				 << "stamp" << stamp
 				 << "frame_id" << msg->header.frame_id));
   builderAppend(document, "format", msg->format);

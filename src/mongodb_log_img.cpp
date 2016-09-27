@@ -41,15 +41,15 @@ void msg_callback(const sensor_msgs::Image::ConstPtr& msg)
   DataObjectBuilder document;
 
   BSONDate stamp = MAKE_BSON_DATE(msg->header.stamp.sec * 1000.0 + msg->header.stamp.nsec / 1000000.0);
-  builderAppend(document, "header", MAKE_BSON_DATA_OBJECT(   "seq" << msg->header.seq
+  builderAppend(document, "header", MAKE_BSON_DATA_OBJECT(   "seq" << ((long int)msg->header.seq)
 				 << "stamp" << stamp
 				 << "frame_id" << msg->header.frame_id));
-  builderAppend(document, "height", msg->height);
-  builderAppend(document, "width", msg->width);
+  builderAppend(document, "height", (long int)msg->height);
+  builderAppend(document, "width", (long int)msg->width);
   builderAppend(document, "encoding", msg->encoding);
   builderAppend(document, "is_bigendian", msg->is_bigendian);
-  builderAppend(document, "step", msg->step);
-  builderAppendBinaryData(document, "data", msg->data.size(), const_cast<unsigned char*>(&msg->data[0]));
+  builderAppend(document, "step", (long int)msg->step);
+  builderAppendBinaryData(document, "data", (long int)msg->data.size(), const_cast<unsigned char*>(&msg->data[0]));
 
   insertOne(mongodb_conn, collection, builderGetObject(document));
 

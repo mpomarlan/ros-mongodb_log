@@ -83,7 +83,7 @@ DataObject keyValuePairToBSON(designator_integration::KeyValuePair* kvpPair) {
     DataObjectBuilder bobTransformStamped;
     DataObjectBuilder bobTransform;
     builderAppend(bobTransformStamped, "header",
-                   MAKE_BSON_DATA_OBJECT(   "seq" << psPoseStamped.header.seq
+                   MAKE_BSON_DATA_OBJECT(   "seq" << ((long int)psPoseStamped.header.seq)
 				    << "stamp" << stamp
 				    << "frame_id" << psPoseStamped.header.frame_id));
     builderAppend(bobTransform, "position",
@@ -143,10 +143,14 @@ void logDesignator(designator_integration::Designator* desigLog) {
   }
   
   builderAppend(bobDesig, "_designator_type", strDesigType);
+
+  DataObjectBuilder dbEntry;
+
+  builderAppend(dbEntry, "designator", builderGetObject(bobDesig));
+  builderAppend(dbEntry, "__recorded", MAKE_BSON_DATE(time(NULL) * 1000));
+  builderAppend(dbEntry, "__topic", strTopic);
   
-  insertOne(dbMongoDB, strCollection, MAKE_BSON_DATA_OBJECT("designator" << builderGetObject(bobDesig) <<
-                                            "__recorded" << MAKE_BSON_DATE(time(NULL) * 1000) <<
-                                            "__topic" << strTopic));
+  insertOne(dbMongoDB, strCollection, builderGetObject(dbEntry));
   
   pthread_mutex_lock(&in_counter_mutex);
   ++in_counter;

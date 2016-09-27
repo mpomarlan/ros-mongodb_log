@@ -20,6 +20,10 @@ template<typename T> void builderAppend(DataObjectBuilder &builder, std::string 
 {
     builder.append(key, val);
 }
+void builderAppendDocumentVector(DataObjectBuilder &builder, std::string const& key, std::vector<DataObject> const& val)
+{
+    builder << key << val;
+}
 void builderAppendBinaryData(DataObjectBuilder &builder, std::string const& key, int len, const void* data)
 {
     builder.appendBinData(key, len, mongo::BinDataGeneral, data);
@@ -55,8 +59,11 @@ typedef mongo::Date_t BSONDate;
 
 #else
 
+#include <bsoncxx/builder/stream/array.hpp>
 #include <bsoncxx/builder/stream/document.hpp>
 #include <bsoncxx/json.hpp>
+#include <bsoncxx/types/value.hpp>
+#include <bsoncxx/types.hpp>
 
 #include <mongocxx/client.hpp>
 #include <mongocxx/instance.hpp>
@@ -75,36 +82,73 @@ typedef MongoConnection* MongoConnectionT;
 typedef bsoncxx::document::view_or_value DataObject;
 typedef bsoncxx::builder::stream::document DataObjectBuilder;
 typedef bsoncxx::builder::stream::array ArrayObjectBuilder;
-#define MAKE_BSON_DATA_OBJECT(Val) ((DataObjectBuilder() << Val).view())
+#define MAKE_BSON_DATA_OBJECT(Val) ((DataObjectBuilder() << Val << bsoncxx::builder::stream::finalize).view())
 
 template<typename T> void builderAppend(DataObjectBuilder &builder, std::string const& key, T const& val)
 {
     builder << key << val;
 }
+template<> void builderAppend(DataObjectBuilder &builder, std::string const& key, bsoncxx::document::view_or_value const& val)
+{
+    builder << key << bsoncxx::types::b_document{val.view()};
+}
+template<> void builderAppend(DataObjectBuilder &builder, std::string const& key, bsoncxx::document::view const& val)
+{
+    builder << key << bsoncxx::types::b_document{val};
+}
+template<> void builderAppend(DataObjectBuilder &builder, std::string const& key, bsoncxx::document::value const& val)
+{
+    builder << key << bsoncxx::types::b_document{val};
+}
+
+void builderAppendDocumentVector(DataObjectBuilder &builder, std::string const& key, std::vector<DataObject> const& val)
+{
+    int maxK = val.size();
+    ArrayObjectBuilder arr;
+    for(int k = 0 ; k < maxK; k++)
+    {
+        arr << bsoncxx::types::b_document{val[k]};
+    }
+    builder << key << bsoncxx::types::b_array{arr};
+}
+
 void builderAppendBinaryData(DataObjectBuilder &builder, std::string const& key, int len, const void* data)
 {
-    bsoncxx::b_binary binDataObj;
+    bsoncxx::types::b_binary binDataObj;
     binDataObj.size = len;
-    binDataObj.bytes = data;
-    binDataObj.sub_type = 0; //bsoncxx::k_binary
+    binDataObj.bytes = (const unsigned char*)data;
+    binDataObj.sub_type = bsoncxx::binary_sub_type::k_binary;
     builder << key << binDataObj;
 }
 void builderAppendElements(DataObjectBuilder &builder, DataObject data)
 {
-    builder.appendElements(data);
+    builder << bsoncxx::builder::stream::concatenate(data.view());
 }
-#define START_BUILDER_ARRAY(builder, parent, key) ArrayObjectBuilder builder();
-#define FINISH_BUILDER_ARRAY(builder, parent, key) parent << key << builder.view();
+#define START_BUILDER_ARRAY(builder, parent, key) ArrayObjectBuilder builder;
+#define FINISH_BUILDER_ARRAY(builder, parent, key) parent << key << bsoncxx::types::b_array{builder};
 template<typename T> void builderArrayAppend(ArrayObjectBuilder & builder, T const& data)
 {
     builder << data;
 }
+template<> void builderArrayAppend(ArrayObjectBuilder &builder, bsoncxx::document::view_or_value const& data)
+{
+    builder << bsoncxx::types::b_document{data.view()};
+}
+template<> void builderArrayAppend(ArrayObjectBuilder &builder, bsoncxx::document::view const& data)
+{
+    builder << bsoncxx::types::b_document{data};
+}
+template<> void builderArrayAppend(ArrayObjectBuilder &builder, bsoncxx::document::value const& data)
+{
+    builder << bsoncxx::types::b_document{data};
+}
 DataObject builderGetObject(DataObjectBuilder &builder)
 {
+    //builder << bsoncxx::builder::stream::finalize;
     builder.view();
 }
 
-bool connectToDatabase(MongoConnectionT &clientConnection, std::string const&mongodb_host, std::string const& dbcollname, std::string &errmsg)
+bool ConnectToDatabase(MongoConnectionT &clientConnection, std::string const&mongodb_host, std::string const& dbcollname, std::string &errmsg)
 {
     std::string db_name = dbcollname.substr(0, dbcollname.find('.'));
 
@@ -124,15 +168,16 @@ bool connectToDatabase(MongoConnectionT &clientConnection, std::string const&mon
 
 void insertOne(MongoConnectionT &clientConnection, std::string const& dbcollname, DataObject const& dataObj)
 {
-    std::string collection_name = dbcollname;
-    size_t separator = dbcollname.find('.');
-    if(string::npos != separator)
-        collection_name = dbcollname.substr(separator + 1);
-    clientConnection->databaseConn[collection_name].insert_one(dataObj);
+    //std::string collection_name = dbcollname;
+    //size_t separator = dbcollname.find('.');
+    //if(string::npos != separator)
+    //    collection_name = dbcollname.substr(separator + 1);
+    //clientConnection->databaseConn[collection_name].insert_one(dataObj);
 }
 
-typedef mongocxx::b_date BSONDate;
-#define MAKE_BSON_DATE(Val) (BSONDate(std::chrono::milliseconds(Val)))
+typedef bsoncxx::types::b_date BSONDate;
+
+#define MAKE_BSON_DATE(Val) (BSONDate((long int)(Val)))
 
 #endif
 

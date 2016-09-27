@@ -140,16 +140,16 @@ void msg_callback(const tf::tfMessage::ConstPtr& msg) {
       
       DataObjectBuilder transform_stamped;
       DataObjectBuilder transform;
-      builderAppend(transform_stamped, "header", MAKE_BSON_DATA_OBJECT("seq" << t->header.seq
-					      << "stamp" << stamp
-					      << "frame_id" << t->header.frame_id));
+      builderAppend(transform_stamped, "header", MAKE_BSON_DATA_OBJECT("seq" << ((long int)t->header.seq)
+                       << "stamp" << stamp
+                       << "frame_id" << t->header.frame_id));
       builderAppend(transform_stamped, "child_frame_id", t->child_frame_id);
       builderAppend(transform, "translation", MAKE_BSON_DATA_OBJECT("x" << t->transform.translation.x
-					   << "y" << t->transform.translation.y
-					   << "z" << t->transform.translation.z));
+                       << "y" << t->transform.translation.y
+                       << "z" << t->transform.translation.z));
       builderAppend(transform, "rotation", MAKE_BSON_DATA_OBJECT("x" << t->transform.rotation.x
-					<< "y" << t->transform.rotation.y
-					<< "z" << t->transform.rotation.z
+                    << "y" << t->transform.rotation.y
+                    << "z" << t->transform.rotation.z
                     << "w" << t->transform.rotation.w));
       builderAppend(transform_stamped, "transform", builderGetObject(transform));
       transforms.push_back(builderGetObject(transform_stamped));
@@ -158,11 +158,12 @@ void msg_callback(const tf::tfMessage::ConstPtr& msg) {
   
   if(bDidLogTransforms) {
 
-    DataObject bsonObj = MAKE_BSON_DATA_OBJECT("transforms" << transforms <<
-                                  "__recorded" << MAKE_BSON_DATE(time(NULL) * 1000) <<
-                                  "__topic" << topic);
+    DataObjectBuilder tRecord;
+    builderAppendDocumentVector(tRecord, "transforms", transforms);
+    builderAppend(tRecord, "__recorded", MAKE_BSON_DATE(time(NULL) * 1000));
+    builderAppend(tRecord, "__topic", topic);
 
-    insertOne(mongodb_conn, collection, bsonObj);
+    insertOne(mongodb_conn, collection, builderGetObject(tRecord));
     
     // If we'd get access to the message queue this could be more useful
     // https://code.ros.org/trac/ros/ticket/744
