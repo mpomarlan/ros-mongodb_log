@@ -1,21 +1,24 @@
+#! /usr/bin/env python
 import re
 import sys
 
-def main(argv):
 
-  if(2 > len(argv)):
-    print("Too few parameters. Usage:\nlogreg.py <filename>")
 
-  infile = open(argv[1], 'r')
-  data = infile.read()
-  infile.close()
+if(2 > len(sys.argv)):
+  print("Too few parameters. Usage:\nlogreg.py <filename>")
 
-  addDatesRE = re.compile('\"stamp\"\s*:\s*\{\s*\"\$numberLong\"\s*:\s*\"\s*(?P<number>\d*)\s*\"\s*\}')
-  data = addDatesRE.sub('"stamp" : {"$date" : \g<number>}', data)
+print("Will now process %s\n" % sys.argv[1])
 
-  repLIntsRE = re.compile('\{\s*\"\$numberLong\"\s*:\s*\"\s*(?P<number>\d*)\s*\"\s*\}')
-  data = repLIntsRE.sub('\g<number>', data)
+infile = open(sys.argv[1], 'r')
+data = infile.read()
+infile.close()
 
-  outfile = open(argv[1], 'r')
-  outfile.write("%s" % data)
-  outfile.close()
+addDatesRE = re.compile('\"stamp\"\s*:\s*\{\s*\"\$numberLong\"\s*:\s*\"\s*(?P<number>\d*)\s*\"\s*\}')
+data = addDatesRE.sub('"stamp" : {"$date" : \g<number>}', data)
+
+repLIntsRE = re.compile('\{\s*\"\$numberLong\"\s*:\s*\"\s*(?P<number>\d*)\s*\"\s*\}')
+data = repLIntsRE.sub('\g<number>', data)
+
+outfile = open(sys.argv[1], 'w')
+outfile.write("%s" % data)
+outfile.close()

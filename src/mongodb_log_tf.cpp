@@ -126,7 +126,7 @@ bool shouldLogTransform(std::vector<geometry_msgs::TransformStamped>::const_iter
 }
 
 void msg_callback(const tf::tfMessage::ConstPtr& msg) {
-  
+    
   const tf::tfMessage& msg_in = *msg;
   bool bDidLogTransforms = false;
 
