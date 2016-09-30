@@ -163,9 +163,13 @@ void insertOne(MongoConnectionT &clientConnection, std::string const& dbcollname
     clientConnection->databaseConn[collection_name].insert_one(dataObj);
 }
 
-typedef bsoncxx::types::b_date BSONDate;
+//typedef bsoncxx::types::b_date BSONDate;
+//#define MAKE_BSON_DATE(Val) (BSONDate((MongoInt)(Val)))
 
-#define MAKE_BSON_DATE(Val) (BSONDate((long int)(Val)))
+typedef bsoncxx::types::b_int64 longInt;
+
+typedef signed long int BSONDate;
+#define MAKE_BSON_DATE(Val) ((MongoInt)(Val))
 
 #endif
 
