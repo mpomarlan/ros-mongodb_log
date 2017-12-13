@@ -1,0 +1,1 @@
+{"_id":{"$oid":"57ee2c21cc382b6144395e61"},"transforms":[{"header":{"seq":0,"stamp" : {"$date" : 0},"frame_id":"/from"},"child_frame_id":"/some_other","transform":{"translation":{"x":1.0,"y":0.0,"z":0.0},"rotation":{"x":0.0,"y":0.0,"z":0.0,"w":1.0}}}],"__recorded":1475226657000,"__topic":"/tf"}
